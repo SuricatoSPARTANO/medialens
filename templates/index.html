@@ -505,12 +505,6 @@ function toggleSection(id) {
   if (chev) chev.classList.toggle('open');
 }
 
-function toggleSection(i) {
-  document.getElementById('body'+i).classList.toggle('open');
-  const c = document.getElementById('chev'+i);
-  c.classList.toggle('open');
-}
-
 async function analyze() {
   hideError();
   const keys = getKeys();
