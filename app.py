@@ -240,34 +240,45 @@ def download_audio(url):
     tmpdir = tempfile.mkdtemp()
     out_path = os.path.join(tmpdir, "audio")
 
-    # Find best available JS runtime
-    js_runtime_args = []
-    for runtime in ["node", "nodejs", "deno"]:
+    # Update yt-dlp first to get latest fixes
+    subprocess.run(["pip", "install", "--upgrade", "yt-dlp", "--break-system-packages"],
+                   capture_output=True, timeout=60)
+
+    # Find JS runtime
+    js_args = []
+    for runtime in ["node", "nodejs", "deno", "phantomjs"]:
         path = shutil.which(runtime)
         if path:
-            js_runtime_args = ["--js-runtimes", f"{runtime}:{path}"]
+            js_args = ["--js-runtimes", f"{runtime}:{path}"]
             break
 
+    # Try with format selection that avoids JS requirement
     cmd = [
         "yt-dlp",
-        "--extract-audio",
-        "--audio-format", "mp3",
         "--no-playlist",
         "--max-filesize", "50m",
         "--ffmpeg-location", "/usr/bin",
-    ] + js_runtime_args + [
+        "-f", "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
+        "--no-check-certificate",
+    ] + js_args + [
         "-o", out_path + ".%(ext)s",
         url
     ]
 
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
-    for ext in ["mp3", "m4a", "webm", "opus", "ogg", "wav"]:
+
+    # Look for any downloaded file
+    for ext in ["m4a", "mp3", "webm", "opus", "ogg", "wav", "mp4"]:
         candidate = out_path + "." + ext
         if os.path.exists(candidate):
             return candidate
-    if result.returncode != 0:
-        raise Exception(f"Download fallito: {result.stderr[:400]}")
-    raise Exception("File audio non trovato dopo il download")
+
+    # Check tmpdir for any file
+    files = [f for f in os.listdir(tmpdir) if not f.endswith('.part')]
+    if files:
+        return os.path.join(tmpdir, files[0])
+
+    raise Exception(f"Download fallito: {result.stderr[:400]}")
 
 
 @app.route("/")
