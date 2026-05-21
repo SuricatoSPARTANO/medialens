@@ -238,10 +238,15 @@ def transcribe_with_whisper(audio_path, api_key):
 def download_audio(url):
     tmpdir = tempfile.mkdtemp()
     out_path = os.path.join(tmpdir, "audio")
+    # Find deno location
+    import shutil
+    deno_path = shutil.which("deno") or "/root/.nix-profile/bin/deno"
+    
     cmd = [
         "yt-dlp", "--extract-audio", "--audio-format", "mp3",
         "--no-playlist", "--max-filesize", "50m",
         "--ffmpeg-location", "/usr/bin",
+        "--js-runtimes", f"deno:{deno_path}",
         "-o", out_path + ".%(ext)s", url
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
