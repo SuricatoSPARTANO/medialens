@@ -176,7 +176,7 @@ header { padding: 28px 0 24px; display: flex; align-items: center; gap: 14px; bo
     <h1>Media Lens</h1>
     <p>Analisi critica di contenuti in tempo reale</p>
   </div>
-  <span class="version">v1.0</span>
+  <span class="version">v2.0</span>
 </header>
 
 <div class="keys-panel">
@@ -250,11 +250,32 @@ header { padding: 28px 0 24px; display: flex; align-items: center; gap: 14px; bo
   <div class="scores-grid" id="scoresGrid"></div>
   <div id="analysisSections"></div>
   <div class="verdict-card" id="verdictCard"></div>
+  <div style="text-align:center;margin-top:12px">
+    <button onclick="downloadReport()" style="padding:10px 24px;border-radius:8px;border:0.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#f0f0f5;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit" onmouseover="this.style.background='rgba(255,255,255,.12)'" onmouseout="this.style.background='rgba(255,255,255,.06)'">⬇ Scarica report PDF</button>
+  </div>
 </div>
 
 </div>
 
 <script>
+
+function downloadReport() {
+  const el = document.getElementById("results");
+  if (!el || !el.classList.contains("show")) { alert("Esegui prima un analisi!"); return; }
+  const scores = document.getElementById("scoresGrid").innerHTML;
+  const sections = document.getElementById("analysisSections").innerHTML;
+  const verdict = document.getElementById("verdictCard").innerHTML;
+  const style = "<style>body{font-family:sans-serif;padding:32px;max-width:800px;margin:0 auto;color:#111} h1{color:#e94560} .score-card{display:inline-block;margin:8px;padding:12px 16px;border:1px solid #ddd;border-radius:8px;text-align:center;min-width:120px} .sc-label{font-size:11px;color:#888;text-transform:uppercase} .sc-value{font-size:24px;font-weight:700} .danger{color:#e94560} .warn{color:#f59e0b} .safe{color:#22c55e} .analysis-section{margin:16px 0;border:1px solid #ddd;border-radius:8px;overflow:hidden} .as-header{padding:12px 16px;background:#f8f8f8;display:flex;align-items:center;gap:10px} .as-title{font-weight:600;flex:1} .as-body{padding:12px 16px;display:block!important} .as-chevron{display:none} .claim-item{margin:8px 0;padding:10px 14px;border-left:3px solid #ddd;background:#fafafa} .claim-item.red{border-left-color:#e94560} .claim-item.yellow{border-left-color:#f59e0b} .claim-item.green{border-left-color:#22c55e} .technique-pills{margin-top:8px} .tech-pill{display:inline-block;margin:3px;padding:3px 10px;border-radius:10px;background:#eee;font-size:12px} .verdict-card{margin-top:20px;padding:20px;border:1px solid #ddd;border-radius:8px} .scores-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}</style>";
+  const html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Report Media Lens</title>" + style + "</head><body><h1>Media Lens — Report di analisi</h1><p style=\"color:#888;font-size:13px\">Generato il " + new Date().toLocaleString("it-IT") + "</p><div class=\"scores-grid\">" + scores + "</div>" + sections + "<div class=\"verdict-card\">" + verdict + "</div></body></html>";
+  const blob = new Blob([html], {type: "text/html"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "medialens-report-" + new Date().toISOString().slice(0,10) + ".html";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 let currentMode = 'text';
 let recognition = null;
 let isListening = false;
@@ -308,91 +329,180 @@ function getBadgeClass(level) {
 }
 
 function renderResults(data) {
+  const phase0 = data.phase0 || {};
+  const phase1 = data.phase1 || {};
+  const phase2 = data.phase2 || {};
+
+  const ra = document.getElementById('results');
+
+  // ── SEZIONE 1: Classificazione ──────────────────────────────────────────
+  const riskColors = {low:'safe', medium:'warn', high:'danger'};
+  const riskLabels = {low:'Basso', medium:'Medio', high:'Alto'};
+  const typeIcons = {
+    informativo:'📰', politico:'🏛', attivista:'✊', testimoniale:'🎙',
+    educativo:'📚', intrattenimento:'🎭', commerciale:'💰', misto:'🔀',
+    complottista:'⚠️', satirico:'🎪'
+  };
+  const icon = typeIcons[phase0.content_type] || '📄';
+  const riskCls = riskColors[phase0.risk_profile] || 'warn';
+
+  let s1 = `<div class="analysis-section" style="margin-bottom:10px;border-color:rgba(124,106,247,.4)">
+    <div class="as-header" onclick="toggleSection('s1')" style="background:rgba(124,106,247,.08)">
+      <div class="as-icon ic-bias" style="font-size:18px">${icon}</div>
+      <div style="flex:1">
+        <span class="as-title">Sezione 1 — Classificazione del contenuto</span>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${phase0.content_type_label || phase0.content_type || 'n.d.'}</div>
+      </div>
+      <span class="as-badge ${riskCls === 'danger' ? 'bd-danger' : riskCls === 'warn' ? 'bd-warn' : 'bd-ok'}">Profilo rischio: ${riskLabels[phase0.risk_profile] || 'n.d.'}</span>
+      <span class="as-chevron" id="chevs1">▾</span>
+    </div>
+    <div class="as-body open" id="bodys1">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+        <div style="background:var(--surface2);border-radius:8px;padding:12px">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Intento</div>
+          <div style="font-size:13px;color:var(--text)">${phase0.intent || 'n.d.'}</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pubblico target</div>
+          <div style="font-size:13px;color:var(--text)">${phase0.target_audience || 'n.d.'}</div>
+        </div>
+      </div>
+      <div style="background:rgba(124,106,247,.08);border:0.5px solid rgba(124,106,247,.3);border-radius:8px;padding:12px;margin-top:10px">
+        <div style="font-size:11px;color:rgba(124,106,247,.8);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Domanda critica guida</div>
+        <div style="font-size:14px;color:var(--text);font-style:italic">"${phase0.guiding_question || 'n.d.'}"</div>
+      </div>
+      <p class="as-text">${phase0.classification_note || ''}</p>
+    </div>
+  </div>`;
+
+  // ── SEZIONE 2: Analisi calibrata ────────────────────────────────────────
   const scores = [
-    { label: 'Claim a rischio', val: data.risk_score_claims },
-    { label: 'Framing emotivo', val: data.risk_score_framing },
-    { label: 'Bias ideologico', val: data.risk_score_bias },
-    { label: 'Retorica manip.', val: data.risk_score_rhetoric }
+    {label:'Claim a rischio', val: phase1.risk_score_claims},
+    {label:'Framing emotivo', val: phase1.risk_score_framing},
+    {label:'Bias ideologico', val: phase1.risk_score_bias},
+    {label:'Retorica manip.', val: phase1.risk_score_rhetoric}
   ];
-  document.getElementById('scoresGrid').innerHTML = scores.map(s =>
+
+  let scoresHtml = '<div class="scores-grid" style="margin-top:14px">' + scores.map(s =>
     `<div class="score-card"><div class="sc-label">${s.label}</div><div class="sc-value ${getScoreClass(s.val||0)}">${s.val||0}%</div></div>`
-  ).join('');
+  ).join('') + '</div>';
 
-  const sections = [
-    {
-      icon: '⬤', iconClass: 'ic-claims', title: 'Claim fattuali verificabili',
-      badge: data.claims_level, key: 'claims',
-      renderBody: () => {
-        let h = `<p class="as-text">${data.claims_summary||''}</p>`;
-        (data.claims||[]).forEach(c => {
-          const cc = c.color==='red'?'red':c.color==='green'?'green':'yellow';
-          const vk = c.verdict_key==='false'?'vt-false':c.verdict_key==='true'?'vt-true':c.verdict_key==='partial'?'vt-partial':'vt-unverifiable';
-          h += `<div class="claim-item ${cc}"><div class="claim-text">"${c.claim}"</div><div class="claim-meta"><span class="verdict-tag ${vk}">${c.verdict_label}</span><span class="claim-expl">${c.explanation}</span></div></div>`;
-        });
-        return h;
-      }
-    },
-    {
-      icon: '◎', iconClass: 'ic-framing', title: 'Framing emotivo / manipolativo',
-      badge: data.framing_level, key: 'framing',
-      renderBody: () => {
-        let h = `<p class="as-text">${data.framing_analysis||''}</p>`;
-        if (data.framing_examples) h += `<div class="claim-item yellow" style="margin-top:10px"><div class="claim-text" style="font-weight:400;font-style:italic">${data.framing_examples}</div></div>`;
-        return h;
-      }
-    },
-    {
-      icon: '◈', iconClass: 'ic-bias', title: 'Bias politico / ideologico',
-      badge: data.bias_level, key: 'bias',
-      renderBody: () => {
-        let h = `<p class="as-text">${data.bias_analysis||''}</p>`;
-        if (data.bias_spectrum) h += `<div class="claim-item yellow" style="margin-top:10px"><div class="claim-text">Posizionamento rilevato</div><div class="claim-expl">${data.bias_spectrum}</div></div>`;
-        return h;
-      }
-    },
-    {
-      icon: '◉', iconClass: 'ic-rhetoric', title: 'Tecniche retoriche usate',
-      badge: data.rhetoric_level, key: 'rhetoric',
-      renderBody: () => {
-        let h = `<p class="as-text">${data.rhetoric_analysis||''}</p>`;
-        if ((data.rhetoric_techniques||[]).length) {
-          h += `<div class="technique-pills">${data.rhetoric_techniques.map(t=>`<span class="tech-pill">${t}</span>`).join('')}</div>`;
-        }
-        return h;
-      }
-    },
-    {
-      icon: '◌', iconClass: 'ic-omissions', title: 'Cosa viene omesso',
-      badge: data.omissions_level, key: 'omissions',
-      renderBody: () => {
-        let h = `<p class="as-text">${data.omissions_analysis||''}</p>`;
-        (data.omissions||[]).forEach(o => { h += `<div class="omission-item">${o}</div>`; });
-        return h;
-      }
-    }
+  const subsections = [
+    {icon:'⬤', cls:'ic-claims', title:'Claim fattuali', badge: phase1.claims_level, body: () => {
+      let h = `<p class="as-text">${phase1.claims_summary||''}</p>`;
+      (phase1.claims||[]).forEach(c => {
+        const cc = c.color==='red'?'red':c.color==='green'?'green':'yellow';
+        const vk = c.verdict_key==='false'?'vt-false':c.verdict_key==='true'?'vt-true':c.verdict_key==='partial'?'vt-partial':'vt-unverifiable';
+        h += `<div class="claim-item ${cc}"><div class="claim-text">"${c.claim}"</div><div class="claim-meta"><span class="verdict-tag ${vk}">${c.verdict_label}</span><span class="claim-expl">${c.explanation}</span></div></div>`;
+      });
+      return h;
+    }},
+    {icon:'◎', cls:'ic-framing', title:'Framing emotivo', badge: phase1.framing_level, body: () => {
+      let h = `<p class="as-text">${phase1.framing_analysis||''}</p>`;
+      if(phase1.framing_examples) h += `<div class="claim-item yellow" style="margin-top:10px"><div class="claim-text" style="font-weight:400;font-style:italic">${phase1.framing_examples}</div></div>`;
+      return h;
+    }},
+    {icon:'◈', cls:'ic-bias', title:'Bias ideologico', badge: phase1.bias_level, body: () => {
+      let h = `<p class="as-text">${phase1.bias_analysis||''}</p>`;
+      if(phase1.bias_spectrum) h += `<div class="claim-item yellow" style="margin-top:10px"><div class="claim-text">Posizionamento</div><div class="claim-expl">${phase1.bias_spectrum}</div></div>`;
+      return h;
+    }},
+    {icon:'◉', cls:'ic-rhetoric', title:'Tecniche retoriche', badge: phase1.rhetoric_level, body: () => {
+      let h = `<p class="as-text">${phase1.rhetoric_analysis||''}</p>`;
+      if((phase1.rhetoric_techniques||[]).length) h += `<div class="technique-pills">${phase1.rhetoric_techniques.map(t=>`<span class="tech-pill">${t}</span>`).join('')}</div>`;
+      return h;
+    }},
+    {icon:'◌', cls:'ic-omissions', title:'Omissioni', badge: phase1.omissions_level, body: () => {
+      let h = `<p class="as-text">${phase1.omissions_analysis||''}</p>`;
+      (phase1.omissions||[]).forEach(o => { h += `<div class="omission-item">${o}</div>`; });
+      return h;
+    }}
   ];
 
-  document.getElementById('analysisSections').innerHTML = sections.map((s,i) => `
-    <div class="analysis-section">
-      <div class="as-header" onclick="toggleSection(${i})">
-        <div class="as-icon ${s.iconClass}">${s.icon}</div>
+  let subsHtml = subsections.map((s,i) => `
+    <div class="analysis-section" style="margin-bottom:6px">
+      <div class="as-header" onclick="toggleSection('s2_${i}')">
+        <div class="as-icon ${s.cls}">${s.icon}</div>
         <span class="as-title">${s.title}</span>
         <span class="as-badge ${getBadgeClass(s.badge)}">${s.badge||'n.d.'}</span>
-        <span class="as-chevron" id="chev${i}">▾</span>
+        <span class="as-chevron" id="chevs2_${i}">▾</span>
       </div>
-      <div class="as-body" id="body${i}">${s.renderBody()}</div>
-    </div>
-  `).join('');
+      <div class="as-body" id="bodys2_${i}">${s.body()}</div>
+    </div>`).join('');
 
-  document.getElementById('verdictCard').innerHTML = `
-    <div class="vc-label">Verdetto complessivo</div>
-    <div class="vc-text">${data.overall_verdict||''}</div>
-    ${data.reader_advice ? `<div class="vc-advice"><strong>Consiglio:</strong> ${data.reader_advice}</div>` : ''}
-    ${data.transcription ? `<div class="transcription-box"><strong style="color:var(--muted);font-style:normal">Trascrizione (anteprima):</strong><br>${data.transcription}</div>` : ''}
-  `;
+  let s2 = `<div class="analysis-section" style="margin-bottom:10px;border-color:rgba(233,69,96,.4)">
+    <div class="as-header" onclick="toggleSection('s2')" style="background:rgba(233,69,96,.08)">
+      <div class="as-icon ic-claims">◎</div>
+      <div style="flex:1">
+        <span class="as-title">Sezione 2 — Analisi calibrata</span>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Calibrata sul tipo: ${phase0.content_type_label || phase0.content_type || 'n.d.'}</div>
+      </div>
+      <span class="as-chevron" id="chevs2">▾</span>
+    </div>
+    <div class="as-body open" id="bodys2">
+      ${scoresHtml}
+      <div style="margin-top:12px">${subsHtml}</div>
+      <div class="verdict-card" style="margin-top:12px">
+        <div class="vc-label">Verdetto calibrato</div>
+        <div class="vc-text">${phase1.overall_verdict||''}</div>
+        ${phase1.reader_advice ? `<div class="vc-advice"><strong>Consiglio:</strong> ${phase1.reader_advice}</div>` : ''}
+      </div>
+    </div>
+  </div>`;
+
+  // ── SEZIONE 3: Verifica fatti ────────────────────────────────────────────
+  const vc = phase2.verified_claims || [];
+  let claimsHtml = vc.map(c => {
+    const vk = c.verdict_key==='false'?'vt-false':c.verdict_key==='true'?'vt-true':c.verdict_key==='partial'?'vt-partial':c.verdict_key==='opinion'?'vt-unverifiable':'vt-unverifiable';
+    const cc = c.color==='red'?'red':c.color==='green'?'green':'yellow';
+    const sources = (c.sources||[]).map(s=>`<a href="#" style="color:var(--info);font-size:11px;display:block;margin-top:3px">${s}</a>`).join('');
+    return `<div class="claim-item ${cc}" style="margin-top:10px">
+      <div class="claim-text">"${c.claim}"</div>
+      <div class="claim-meta" style="margin-top:6px">
+        <span class="verdict-tag ${vk}">${c.verdict}</span>
+        <span style="font-size:11px;color:var(--hint);margin-left:6px">Confidenza: ${c.confidence||'n.d.'}</span>
+      </div>
+      <div class="claim-expl" style="margin-top:6px">${c.explanation}</div>
+      ${sources ? `<div style="margin-top:6px">${sources}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  let s3 = `<div class="analysis-section" style="margin-bottom:10px;border-color:rgba(34,197,94,.4)">
+    <div class="as-header" onclick="toggleSection('s3')" style="background:rgba(34,197,94,.08)">
+      <div class="as-icon ic-omissions">✓</div>
+      <div style="flex:1">
+        <span class="as-title">Sezione 3 — Verifica dei fatti</span>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${vc.length} claim verificati</div>
+      </div>
+      <span class="as-chevron" id="chevs3">▾</span>
+    </div>
+    <div class="as-body open" id="bodys3">
+      ${claimsHtml || '<p class="as-text" style="margin-top:14px">Nessun claim verificabile identificato.</p>'}
+      ${phase2.fact_check_summary ? `<div style="background:var(--surface2);border-radius:8px;padding:12px;margin-top:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Sintesi verifica</div><div style="font-size:13px;color:var(--text)">${phase2.fact_check_summary}</div></div>` : ''}
+      ${phase2.most_problematic ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(233,69,96,.08);border-radius:8px;border-left:3px solid var(--accent)"><div style="font-size:11px;color:var(--accent);font-weight:500;margin-bottom:4px">Claim più problematico</div><div style="font-size:12px;color:var(--muted)">${phase2.most_problematic}</div></div>` : ''}
+      ${phase2.most_solid ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(34,197,94,.08);border-radius:8px;border-left:3px solid var(--ok)"><div style="font-size:11px;color:var(--ok);font-weight:500;margin-bottom:4px">Claim più solido</div><div style="font-size:12px;color:var(--muted)">${phase2.most_solid}</div></div>` : ''}
+    </div>
+  </div>`;
+
+  // Trascrizione
+  let transcr = data.transcription ? `<div class="transcription-box"><strong style="color:var(--muted);font-style:normal">Trascrizione (anteprima):</strong><br>${data.transcription}</div>` : '';
+
+  // Download button
+  let dlBtn = `<div style="text-align:center;margin-top:16px"><button onclick="downloadReport()" style="padding:10px 24px;border-radius:8px;border:0.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#f0f0f5;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit">⬇ Scarica report</button></div>`;
+
+  document.getElementById('scoresGrid').innerHTML = '';
+  document.getElementById('analysisSections').innerHTML = s1 + s2 + s3 + transcr;
+  document.getElementById('verdictCard').innerHTML = dlBtn;
 
   document.getElementById('results').classList.add('show');
   document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function toggleSection(id) {
+  const body = document.getElementById('body' + id);
+  const chev = document.getElementById('chev' + id);
+  if (body) body.classList.toggle('open');
+  if (chev) chev.classList.toggle('open');
 }
 
 function toggleSection(i) {
