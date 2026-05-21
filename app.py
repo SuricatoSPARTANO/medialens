@@ -279,3 +279,115 @@ def health():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
+
+# ─── DEBATE MODE ─────────────────────────────────────────────────────────────
+
+DEBATE_TURN_PROMPT = """Sei l'AI moderatrice di un dibattito in tempo reale. Analizza questo intervento.
+
+ARGOMENTO DEL DIBATTITO: {topic}
+OBIETTIVO: {objective}
+PARTECIPANTE: {speaker}
+INTERVENTO: '''{text}'''
+
+STORICO DIBATTITO (ultimi interventi):
+{history}
+
+Restituisci SOLO JSON valido:
+{{
+  "claims": [
+    {{
+      "text": "<claim specifico>",
+      "verdict": "<Verificato|Parzialmente vero|Falso|Non verificabile|Opinione>",
+      "verdict_key": "<true|partial|false|unverifiable|opinion>",
+      "explanation": "<spiegazione breve>"
+    }}
+  ],
+  "rhetoric_techniques": ["<tecnica se presente>"],
+  "argument_strength": <0-100>,
+  "argument_note": "<valutazione breve della solidità dell'argomento, 1 frase>",
+  "moderator_question": "<domanda dell'AI per approfondire o sfidare, 1 frase>",
+  "flag": "<none|weak_argument|false_claim|good_point|rhetorical_trick>",
+  "flag_label": "<etichetta leggibile del flag>"
+}}"""
+
+DEBATE_FINAL_PROMPT = """Sei l'AI moderatrice. Il dibattito è terminato. Genera il report finale.
+
+ARGOMENTO: {topic}
+OBIETTIVO SCELTO: {objective}
+PARTECIPANTI: {participants}
+
+TRASCRIZIONE COMPLETA:
+{transcript}
+
+ANALISI DEGLI INTERVENTI:
+{analyses}
+
+Restituisci SOLO JSON valido:
+{{
+  "winner_facts": "<chi aveva più ragione sui fatti, con motivazione>",
+  "critical_thinking_notes": [{{"speaker": "<nome>", "note": "<valutazione pensiero critico>"}}],
+  "shared_ground": "<punti di accordo emersi, anche impliciti>",
+  "position_summary": [{{"speaker": "<nome>", "position": "<sintesi posizione>", "strongest_point": "<argomento più solido>", "weakest_point": "<argomento più debole>"}}],
+  "key_claims_verified": [{{"claim": "<testo>", "verdict": "<verdetto>", "speaker": "<chi l'ha detto>"}}],
+  "overall_quality": "<valutazione complessiva della qualità del dibattito, 2-3 frasi>",
+  "next_questions": ["<domanda aperta rimasta senza risposta>"]
+}}"""
+
+
+@app.route("/api/debate/turn", methods=["POST"])
+def debate_turn():
+    data = request.json
+    anthropic_key = data.get("anthropic_key") or ANTHROPIC_API_KEY
+    if not anthropic_key:
+        return jsonify({"error": "Chiave API Anthropic mancante"}), 400
+
+    text = sanitize(data.get("text", ""))
+    speaker = data.get("speaker", "Partecipante")
+    topic = data.get("topic", "")
+    objective = data.get("objective", "")
+    history = data.get("history", "")
+
+    if not text or len(text.strip()) < 5:
+        return jsonify({"error": "Intervento troppo breve"}), 400
+
+    try:
+        prompt = DEBATE_TURN_PROMPT.format(
+            topic=topic,
+            objective=objective,
+            speaker=speaker,
+            text=text,
+            history=history[-3000:] if history else "Nessuno ancora"
+        )
+        result = call_claude(prompt, anthropic_key)
+        result["speaker"] = speaker
+        result["text"] = text
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/debate/final", methods=["POST"])
+def debate_final():
+    data = request.json
+    anthropic_key = data.get("anthropic_key") or ANTHROPIC_API_KEY
+    if not anthropic_key:
+        return jsonify({"error": "Chiave API Anthropic mancante"}), 400
+
+    try:
+        prompt = DEBATE_FINAL_PROMPT.format(
+            topic=data.get("topic", ""),
+            objective=data.get("objective", ""),
+            participants=", ".join(data.get("participants", [])),
+            transcript=sanitize(data.get("transcript", "")),
+            analyses=json.dumps(data.get("analyses", [])[:20], ensure_ascii=False)[:4000]
+        )
+        result = call_claude(prompt, anthropic_key)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/debate")
+def debate_page():
+    return render_template("debate.html")
