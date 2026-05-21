@@ -390,4 +390,6 @@ def debate_final():
 
 @app.route("/debate")
 def debate_page():
-    return render_template("debate.html")
+    from flask import Response
+    html = open(os.path.join(os.path.dirname(__file__), "templates", "debate.html")).read()
+    return Response(html, mimetype="text/html")
