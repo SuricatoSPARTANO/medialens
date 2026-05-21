@@ -4,6 +4,12 @@ import tempfile
 import subprocess
 import threading
 import time
+
+try:
+    subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
+except Exception:
+    subprocess.run(["apt-get", "install", "-y", "ffmpeg"], capture_output=True)
+
 from flask import Flask, request, jsonify, render_template, Response, stream_with_context
 from flask_cors import CORS
 import requests
@@ -112,27 +118,25 @@ def transcribe_with_whisper(audio_path, api_key):
 
 def download_audio(url):
     tmpdir = tempfile.mkdtemp()
-    out_path = os.path.join(tmpdir, "audio.mp3")
+    out_path = os.path.join(tmpdir, "audio")
     cmd = [
         "yt-dlp",
         "--extract-audio",
         "--audio-format", "mp3",
-        "--audio-quality", "5",
         "--no-playlist",
         "--max-filesize", "50m",
-        "-o", out_path,
+        "--ffmpeg-location", "/usr/bin",
+        "-o", out_path + ".%(ext)s",
         url
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    for ext in ["mp3", "m4a", "webm", "opus", "ogg", "wav"]:
+        candidate = out_path + "." + ext
+        if os.path.exists(candidate):
+            return candidate
     if result.returncode != 0:
         raise Exception(f"Download fallito: {result.stderr[:300]}")
-    if not os.path.exists(out_path):
-        files = os.listdir(tmpdir)
-        if files:
-            out_path = os.path.join(tmpdir, files[0])
-        else:
-            raise Exception("File audio non trovato dopo il download")
-    return out_path
+    raise Exception("File audio non trovato dopo il download")
 
 
 @app.route("/")
