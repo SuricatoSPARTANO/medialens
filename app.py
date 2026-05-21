@@ -236,26 +236,37 @@ def transcribe_with_whisper(audio_path, api_key):
 
 
 def download_audio(url):
+    import shutil
     tmpdir = tempfile.mkdtemp()
     out_path = os.path.join(tmpdir, "audio")
-    # Find deno location
-    import shutil
-    deno_path = shutil.which("deno") or "/root/.nix-profile/bin/deno"
-    
+
+    # Find best available JS runtime
+    js_runtime_args = []
+    for runtime in ["node", "nodejs", "deno"]:
+        path = shutil.which(runtime)
+        if path:
+            js_runtime_args = ["--js-runtimes", f"{runtime}:{path}"]
+            break
+
     cmd = [
-        "yt-dlp", "--extract-audio", "--audio-format", "mp3",
-        "--no-playlist", "--max-filesize", "50m",
+        "yt-dlp",
+        "--extract-audio",
+        "--audio-format", "mp3",
+        "--no-playlist",
+        "--max-filesize", "50m",
         "--ffmpeg-location", "/usr/bin",
-        "--js-runtimes", f"deno:{deno_path}",
-        "-o", out_path + ".%(ext)s", url
+    ] + js_runtime_args + [
+        "-o", out_path + ".%(ext)s",
+        url
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
     for ext in ["mp3", "m4a", "webm", "opus", "ogg", "wav"]:
         candidate = out_path + "." + ext
         if os.path.exists(candidate):
             return candidate
     if result.returncode != 0:
-        raise Exception(f"Download fallito: {result.stderr[:300]}")
+        raise Exception(f"Download fallito: {result.stderr[:400]}")
     raise Exception("File audio non trovato dopo il download")
 
 
