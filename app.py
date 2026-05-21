@@ -37,7 +37,7 @@ Restituisci SOLO JSON valido (nessun markdown, nessun backtick):
   "classification_note": "<spiegazione della classificazione, 2-3 frasi>"
 }}"""
 
-PHASE1_PROMPTS = {{
+PHASE1_PROMPTS = {
   "informativo": """Analizza questo contenuto informativo. Concentrati su: accuratezza, completezza, fonti citate, contesto fornito, cosa manca.
 CONTENUTO: \"\"\"{text}\"\"\"
 Restituisci SOLO JSON valido:
@@ -91,7 +91,7 @@ Restituisci SOLO JSON valido:
   "overall_verdict": "<verdetto calibrato sul formato testimoniale>",
   "reader_advice": "<consiglio 1-2 frasi>"
 }}"""
-}}
+}
 
 PHASE1_DEFAULT = """Analizza questo contenuto di tipo {content_type}. Obiettivo critico: {guiding_question}
 CONTENUTO: \"\"\"{text}\"\"\"
