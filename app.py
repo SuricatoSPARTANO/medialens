@@ -2,7 +2,6 @@ import os
 import json
 import tempfile
 import subprocess
-import threading
 import time
 
 try:
@@ -10,7 +9,7 @@ try:
 except Exception:
     subprocess.run(["apt-get", "install", "-y", "ffmpeg"], capture_output=True)
 
-from flask import Flask, request, jsonify, render_template, Response, stream_with_context
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import requests
 
@@ -20,68 +19,153 @@ CORS(app)
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
-ANALYSIS_PROMPT = """Sei un analista critico dei media esperto in fact-checking, retorica, psicologia della comunicazione e pensiero critico.
-Analizza il seguente contenuto e restituisci SOLO un oggetto JSON valido, senza markdown, senza backtick.
+# ─── PROMPTS ────────────────────────────────────────────────────────────────
 
-TIPO DI CONTENUTO: {mode}
+PHASE0_PROMPT = """Sei un esperto di comunicazione e media. Analizza il seguente contenuto e classifica il tipo.
+
 CONTENUTO:
 \"\"\"{text}\"\"\"
 
-Restituisci questo JSON (in italiano):
+Restituisci SOLO JSON valido (nessun markdown, nessun backtick):
+{{
+  "content_type": "<uno tra: informativo|politico|attivista|testimoniale|educativo|intrattenimento|commerciale|misto|complottista|satirico>",
+  "content_type_label": "<nome leggibile in italiano>",
+  "intent": "<descrizione breve dell'intento principale, 1 frase>",
+  "target_audience": "<pubblico a cui si rivolge, 1 frase>",
+  "guiding_question": "<la domanda critica principale da farsi su questo contenuto, 1 frase>",
+  "risk_profile": "<low|medium|high>",
+  "classification_note": "<spiegazione della classificazione, 2-3 frasi>"
+}}"""
+
+PHASE1_PROMPTS = {{
+  "informativo": """Analizza questo contenuto informativo. Concentrati su: accuratezza, completezza, fonti citate, contesto fornito, cosa manca.
+CONTENUTO: \"\"\"{text}\"\"\"
+Restituisci SOLO JSON valido:
 {{
   "risk_score_claims": <0-100>,
   "risk_score_framing": <0-100>,
   "risk_score_bias": <0-100>,
   "risk_score_rhetoric": <0-100>,
   "claims_level": "<Nessun claim|Basso|Moderato|Alto|Grave>",
-  "claims_summary": "<paragrafo sui claim>",
-  "claims": [
-    {{
-      "claim": "<citazione o parafrasi>",
-      "verdict_label": "<Verificato|Parzialmente vero|Falso|Non verificabile>",
-      "verdict_key": "<true|partial|false|unverifiable>",
-      "color": "<green|yellow|red>",
-      "explanation": "<spiegazione 1-2 frasi>"
-    }}
-  ],
+  "claims_summary": "<analisi dei claim>",
+  "claims": [{{"claim":"<testo>","verdict_label":"<Verificato|Parzialmente vero|Falso|Non verificabile>","verdict_key":"<true|partial|false|unverifiable>","color":"<green|yellow|red>","explanation":"<spiegazione>"}}],
   "framing_level": "<Assente|Basso|Moderato|Alto|Molto alto>",
-  "framing_analysis": "<analisi framing, 2-3 frasi>",
-  "framing_examples": "<esempi specifici dal testo>",
+  "framing_analysis": "<analisi>",
+  "framing_examples": "<esempi>",
   "bias_level": "<Assente|Lieve|Moderato|Forte|Molto forte>",
-  "bias_analysis": "<analisi bias, 2-3 frasi>",
-  "bias_spectrum": "<posizionamento ideologico rilevato>",
+  "bias_analysis": "<analisi>",
+  "bias_spectrum": "<posizionamento>",
   "rhetoric_level": "<Assente|Basso|Moderato|Alto|Molto alto>",
-  "rhetoric_analysis": "<analisi tecniche retoriche, 2-3 frasi>",
-  "rhetoric_techniques": ["<tecnica1>", "<tecnica2>"],
+  "rhetoric_analysis": "<analisi>",
+  "rhetoric_techniques": ["<tecnica>"],
   "omissions_level": "<Nessuna|Poche|Alcune|Molte|Sistematiche>",
-  "omissions_analysis": "<cosa viene taciuto, 2-3 frasi>",
-  "omissions": ["<cosa manca 1>", "<cosa manca 2>"],
-  "overall_verdict": "<verdetto complessivo 3-4 frasi>",
-  "reader_advice": "<consiglio pratico 1-2 frasi>"
+  "omissions_analysis": "<analisi>",
+  "omissions": ["<omissione>"],
+  "overall_verdict": "<verdetto 3-4 frasi>",
+  "reader_advice": "<consiglio 1-2 frasi>"
+}}""",
+
+  "testimoniale": """Analizza questo contenuto testimoniale/personale. Attenzione: l'emozione è il mezzo espressivo legittimo qui. Concentrati su: dove finisce la testimonianza e inizia la generalizzazione, se ci sono claim universali non supportati, se l'intento cambia nel corso del contenuto.
+CONTENUTO: \"\"\"{text}\"\"\"
+Restituisci SOLO JSON valido:
+{{
+  "risk_score_claims": <0-100, pesa poco l'emozione>,
+  "risk_score_framing": <0-100, considera che l'emozione è legittima>,
+  "risk_score_bias": <0-100>,
+  "risk_score_rhetoric": <0-100, considera che la retorica personale è normale>,
+  "claims_level": "<Nessun claim|Basso|Moderato|Alto|Grave>",
+  "claims_summary": "<analisi focalizzata sulle generalizzazioni indebite>",
+  "claims": [{{"claim":"<testo>","verdict_label":"<Verificato|Parzialmente vero|Falso|Non verificabile>","verdict_key":"<true|partial|false|unverifiable>","color":"<green|yellow|red>","explanation":"<spiegazione>"}}],
+  "framing_level": "<Assente|Basso|Moderato|Alto|Molto alto>",
+  "framing_analysis": "<distingui emozione legittima da framing manipolativo>",
+  "framing_examples": "<esempi solo di framing problematico, non dell'emozione normale>",
+  "bias_level": "<Assente|Lieve|Moderato|Forte|Molto forte>",
+  "bias_analysis": "<analisi>",
+  "bias_spectrum": "<posizionamento>",
+  "rhetoric_level": "<Assente|Basso|Moderato|Alto|Molto alto>",
+  "rhetoric_analysis": "<distingui retorica personale da tecniche manipolative>",
+  "rhetoric_techniques": ["<solo tecniche realmente problematiche>"],
+  "omissions_level": "<Nessuna|Poche|Alcune|Molte|Sistematiche>",
+  "omissions_analysis": "<analisi>",
+  "omissions": ["<omissione>"],
+  "overall_verdict": "<verdetto calibrato sul formato testimoniale>",
+  "reader_advice": "<consiglio 1-2 frasi>"
+}}"""
+}}
+
+PHASE1_DEFAULT = """Analizza questo contenuto di tipo {content_type}. Obiettivo critico: {guiding_question}
+CONTENUTO: \"\"\"{text}\"\"\"
+Restituisci SOLO JSON valido:
+{{
+  "risk_score_claims": <0-100>,
+  "risk_score_framing": <0-100>,
+  "risk_score_bias": <0-100>,
+  "risk_score_rhetoric": <0-100>,
+  "claims_level": "<Nessun claim|Basso|Moderato|Alto|Grave>",
+  "claims_summary": "<analisi>",
+  "claims": [{{"claim":"<testo>","verdict_label":"<Verificato|Parzialmente vero|Falso|Non verificabile>","verdict_key":"<true|partial|false|unverifiable>","color":"<green|yellow|red>","explanation":"<spiegazione>"}}],
+  "framing_level": "<Assente|Basso|Moderato|Alto|Molto alto>",
+  "framing_analysis": "<analisi>",
+  "framing_examples": "<esempi>",
+  "bias_level": "<Assente|Lieve|Moderato|Forte|Molto forte>",
+  "bias_analysis": "<analisi>",
+  "bias_spectrum": "<posizionamento>",
+  "rhetoric_level": "<Assente|Basso|Moderato|Alto|Molto alto>",
+  "rhetoric_analysis": "<analisi>",
+  "rhetoric_techniques": ["<tecnica>"],
+  "omissions_level": "<Nessuna|Poche|Alcune|Molte|Sistematiche>",
+  "omissions_analysis": "<analisi>",
+  "omissions": ["<omissione>"],
+  "overall_verdict": "<verdetto 3-4 frasi>",
+  "reader_advice": "<consiglio 1-2 frasi>"
 }}"""
 
-LIVE_CHUNK_PROMPT = """Sei un analista critico dei media in tempo reale. Analizza questo frammento di testo parlato e restituisci SOLO JSON valido.
+PHASE2_PROMPT = """Sei un fact-checker esperto. Hai accesso alla ricerca web. Verifica ogni claim della lista usando fonti primarie.
 
-FRAMMENTO (chunk #{chunk_num}):
-\"\"\"{text}\"\"\"
+CLAIMS DA VERIFICARE:
+{claims_json}
 
-JSON richiesto:
+CONTESTO (tipo di contenuto): {content_type}
+
+Per ogni claim cerca fonti primarie (leggi, studi scientifici, dati ufficiali, articoli giornalistici verificati).
+Restituisci SOLO JSON valido:
+{{
+  "verified_claims": [
+    {{
+      "claim": "<testo del claim>",
+      "verdict": "<Vero|Parzialmente vero|Falso|Non verificabile|Opinione>",
+      "verdict_key": "<true|partial|false|unverifiable|opinion>",
+      "confidence": "<Alta|Media|Bassa>",
+      "explanation": "<spiegazione con dettagli concreti, 2-3 frasi>",
+      "sources": ["<fonte 1>", "<fonte 2>"],
+      "color": "<green|yellow|red>"
+    }}
+  ],
+  "fact_check_summary": "<sintesi generale della verifica, 2-3 frasi>",
+  "most_problematic": "<il claim più problematico identificato, 1 frase>",
+  "most_solid": "<il claim più solido o verificato, 1 frase>"
+}}"""
+
+LIVE_CHUNK_PROMPT = """Analizza questo frammento di testo parlato e restituisci SOLO JSON valido.
+FRAMMENTO (chunk #{chunk_num}): \"\"\"{text}\"\"\"
 {{
   "risk_level": "<low|medium|high>",
   "risk_score": <0-100>,
-  "flags": [
-    {{
-      "type": "<claim|framing|rhetoric|bias>",
-      "text": "<frase specifica dal testo>",
-      "note": "<spiegazione breve>"
-    }}
-  ],
-  "techniques": ["<tecnica retorica se presente>"],
-  "summary": "<una frase su cosa sta succedendo in questo momento>"
+  "flags": [{{"type":"<claim|framing|rhetoric|bias>","text":"<frase>","note":"<spiegazione>"}}],
+  "techniques": ["<tecnica>"],
+  "summary": "<una frase>"
 }}"""
 
 
-def call_claude(prompt, api_key):
+def call_claude(prompt, api_key, tools=None):
+    body = {
+        "model": "claude-sonnet-4-5",
+        "max_tokens": 3000,
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    if tools:
+        body["tools"] = tools
+
     resp = requests.post(
         "https://api.anthropic.com/v1/messages",
         headers={
@@ -89,16 +173,38 @@ def call_claude(prompt, api_key):
             "x-api-key": api_key,
             "anthropic-version": "2023-06-01"
         },
-        json={
-            "model": "claude-sonnet-4-5",
-            "max_tokens": 2000,
-            "messages": [{"role": "user", "content": prompt}]
-        },
-        timeout=60
+        json=body,
+        timeout=120
     )
     resp.raise_for_status()
     data = resp.json()
-    raw = "".join(b.get("text", "") for b in data.get("content", []))
+    raw = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+    clean = raw.replace("```json", "").replace("```", "").strip()
+    return json.loads(clean)
+
+
+def call_claude_with_search(prompt, api_key):
+    """Call Claude with web search enabled for fact-checking."""
+    body = {
+        "model": "claude-sonnet-4-5",
+        "max_tokens": 3000,
+        "tools": [{"type": "web_search_20250305", "name": "web_search"}],
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    resp = requests.post(
+        "https://api.anthropic.com/v1/messages",
+        headers={
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "anthropic-beta": "web-search-2025-03-05"
+        },
+        json=body,
+        timeout=120
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    raw = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
     clean = raw.replace("```json", "").replace("```", "").strip()
     return json.loads(clean)
 
@@ -120,14 +226,10 @@ def download_audio(url):
     tmpdir = tempfile.mkdtemp()
     out_path = os.path.join(tmpdir, "audio")
     cmd = [
-        "yt-dlp",
-        "--extract-audio",
-        "--audio-format", "mp3",
-        "--no-playlist",
-        "--max-filesize", "50m",
+        "yt-dlp", "--extract-audio", "--audio-format", "mp3",
+        "--no-playlist", "--max-filesize", "50m",
         "--ffmpeg-location", "/usr/bin",
-        "-o", out_path + ".%(ext)s",
-        url
+        "-o", out_path + ".%(ext)s", url
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
     for ext in ["mp3", "m4a", "webm", "opus", "ogg", "wav"]:
@@ -157,9 +259,10 @@ def analyze():
         return jsonify({"error": "Chiave API Anthropic mancante"}), 400
 
     try:
+        # Download + transcribe if URL
         if mode == "url" and url:
             if not openai_key:
-                return jsonify({"error": "Chiave API OpenAI necessaria per analizzare video/audio"}), 400
+                return jsonify({"error": "Chiave API OpenAI necessaria per video/audio"}), 400
             audio_path = download_audio(url)
             text = transcribe_with_whisper(audio_path, openai_key)
             try:
@@ -170,19 +273,50 @@ def analyze():
         if not text or len(text.strip()) < 20:
             return jsonify({"error": "Testo troppo breve o vuoto"}), 400
 
-        mode_labels = {
-            "text": "testo libero / post social",
-            "url": "trascrizione video/audio",
-            "transcript": "trascrizione podcast/dibattito",
-            "article": "articolo / notizia",
-            "live": "trascrizione live"
+        text_truncated = text[:8000]
+
+        # ── FASE 0: Classificazione ──────────────────────────────────────────
+        phase0 = call_claude(PHASE0_PROMPT.format(text=text_truncated), anthropic_key)
+
+        content_type = phase0.get("content_type", "misto")
+        guiding_question = phase0.get("guiding_question", "")
+
+        # ── FASE 1: Analisi calibrata ────────────────────────────────────────
+        if content_type in PHASE1_PROMPTS:
+            p1_prompt = PHASE1_PROMPTS[content_type].format(text=text_truncated)
+        else:
+            p1_prompt = PHASE1_DEFAULT.format(
+                content_type=phase0.get("content_type_label", content_type),
+                guiding_question=guiding_question,
+                text=text_truncated
+            )
+
+        phase1 = call_claude(p1_prompt, anthropic_key)
+
+        # ── FASE 2: Verifica fatti ───────────────────────────────────────────
+        claims = phase1.get("claims", [])
+        phase2 = {"verified_claims": [], "fact_check_summary": "", "most_problematic": "", "most_solid": ""}
+
+        if claims:
+            claims_for_check = [{"claim": c.get("claim", ""), "initial_verdict": c.get("verdict_label", "")} for c in claims[:5]]
+            p2_prompt = PHASE2_PROMPT.format(
+                claims_json=json.dumps(claims_for_check, ensure_ascii=False),
+                content_type=phase0.get("content_type_label", content_type)
+            )
+            try:
+                phase2 = call_claude_with_search(p2_prompt, anthropic_key)
+            except Exception:
+                try:
+                    phase2 = call_claude(p2_prompt, anthropic_key)
+                except Exception:
+                    pass
+
+        result = {
+            "transcription": text[:500] + ("..." if len(text) > 500 else ""),
+            "phase0": phase0,
+            "phase1": phase1,
+            "phase2": phase2
         }
-        prompt = ANALYSIS_PROMPT.format(
-            mode=mode_labels.get(mode, mode),
-            text=text[:8000]
-        )
-        result = call_claude(prompt, anthropic_key)
-        result["transcription"] = text[:500] + ("..." if len(text) > 500 else "")
         return jsonify(result)
 
     except Exception as e:
@@ -211,7 +345,7 @@ def analyze_live_chunk():
 
 @app.route("/api/health")
 def health():
-    return jsonify({"status": "ok", "version": "1.0.0"})
+    return jsonify({"status": "ok", "version": "2.0.0"})
 
 
 if __name__ == "__main__":
