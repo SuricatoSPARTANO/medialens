@@ -157,6 +157,19 @@ FRAMMENTO (chunk #{chunk_num}): \"\"\"{text}\"\"\"
 }}"""
 
 
+
+def sanitize_text(text):
+    """Remove characters that break JSON encoding."""
+    import re
+    # Remove control characters except newlines and tabs
+    text = re.sub(r'[--]', '', text)
+    # Replace smart quotes and special dashes
+    text = text.replace('“', '"').replace('”', '"')
+    text = text.replace('‘', "'").replace('’', "'")
+    text = text.replace('–', '-').replace('—', '-')
+    # Truncate safely
+    return text[:8000]
+
 def call_claude(prompt, api_key, tools=None):
     body = {
         "model": "claude-sonnet-4-5",
@@ -273,7 +286,7 @@ def analyze():
         if not text or len(text.strip()) < 20:
             return jsonify({"error": "Testo troppo breve o vuoto"}), 400
 
-        text_truncated = text[:8000]
+        text_truncated = sanitize_text(text)
 
         # ── FASE 0: Classificazione ──────────────────────────────────────────
         phase0 = call_claude(PHASE0_PROMPT.format(text=text_truncated), anthropic_key)
