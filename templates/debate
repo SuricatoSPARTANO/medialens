@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Media Lens — Arena Dibattito</title>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #13131a;
+  --surface2: #1a1a24;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f0f0f5;
+  --muted: #8888a0;
+  --hint: #4a4a60;
+  --accent: #e94560;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --info: #38bdf8;
+  --purple: #7c6af7;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --mono: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+.shell { max-width: 1000px; margin: 0 auto; padding: 0 20px 80px; }
+
+header { padding: 24px 0 20px; display: flex; align-items: center; gap: 12px; border-bottom: 0.5px solid var(--border); margin-bottom: 28px; }
+.logo { width: 36px; height: 36px; background: var(--purple); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.brand h1 { font-size: 18px; font-weight: 600; }
+.brand p { font-size: 12px; color: var(--muted); }
+.back-btn { margin-left: auto; padding: 6px 14px; border: 0.5px solid var(--border2); border-radius: 6px; background: var(--surface); color: var(--muted); font-size: 12px; cursor: pointer; text-decoration: none; }
+
+/* SETUP */
+#setupScreen { display: block; }
+#debateScreen { display: none; }
+#reportScreen { display: none; }
+
+.setup-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 16px; }
+.setup-card h2 { font-size: 15px; font-weight: 500; margin-bottom: 16px; color: var(--text); }
+.field label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+.field input, .field textarea, .field select { width: 100%; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 8px; padding: 10px 12px; color: var(--text); font-family: var(--font); font-size: 14px; outline: none; }
+.field input:focus, .field select:focus { border-color: var(--purple); }
+.field { margin-bottom: 14px; }
+
+.participants-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.participant-row { display: flex; gap: 8px; align-items: center; }
+.participant-row input { flex: 1; }
+.color-dot { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; cursor: pointer; border: 2px solid transparent; }
+.color-dot.selected { border-color: #fff; }
+.btn-add { padding: 8px 16px; border: 0.5px dashed var(--border2); border-radius: 8px; background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; width: 100%; }
+.btn-add:hover { border-color: var(--purple); color: var(--purple); }
+.btn-remove { width: 28px; height: 28px; border: 0.5px solid var(--border2); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; flex-shrink: 0; }
+
+.objective-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.obj-btn { padding: 12px 14px; border: 0.5px solid var(--border2); border-radius: 10px; background: var(--surface2); color: var(--muted); font-size: 13px; cursor: pointer; text-align: left; font-family: var(--font); transition: all .15s; }
+.obj-btn:hover { border-color: var(--purple); color: var(--text); }
+.obj-btn.sel { border-color: var(--purple); background: rgba(124,106,247,.1); color: var(--purple); }
+.obj-btn .obj-icon { font-size: 20px; display: block; margin-bottom: 6px; }
+.obj-btn .obj-label { font-weight: 500; display: block; }
+.obj-btn .obj-desc { font-size: 11px; color: var(--muted); margin-top: 3px; display: block; }
+
+.api-row { display: flex; gap: 8px; }
+.api-row input { flex: 1; font-family: var(--mono); font-size: 12px; }
+
+.btn-start { width: 100%; padding: 14px; background: var(--purple); color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 500; cursor: pointer; font-family: var(--font); margin-top: 8px; }
+.btn-start:hover { opacity: .85; }
+.btn-start:disabled { opacity: .4; cursor: not-allowed; }
+
+/* DEBATE */
+.debate-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 14px 18px; background: var(--surface); border-radius: 12px; border: 0.5px solid var(--border); }
+.debate-topic { flex: 1; }
+.debate-topic .topic-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.debate-topic .topic-text { font-size: 14px; font-weight: 500; margin-top: 2px; }
+.turn-counter { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+.btn-end { padding: 8px 16px; border: 0.5px solid rgba(233,69,96,.4); border-radius: 8px; background: rgba(233,69,96,.08); color: var(--accent); font-size: 13px; cursor: pointer; font-family: var(--font); }
+
+.debate-layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+
+.speakers-area { display: flex; flex-direction: column; gap: 10px; }
+.speaker-btn { padding: 14px 18px; border-radius: 12px; border: 2px solid transparent; background: var(--surface); cursor: pointer; font-family: var(--font); transition: all .15s; text-align: left; position: relative; }
+.speaker-btn:hover { opacity: .9; }
+.speaker-btn.active { transform: scale(1.01); }
+.speaker-btn.recording { animation: recordPulse 1s infinite; }
+@keyframes recordPulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+.speaker-name { font-size: 15px; font-weight: 600; color: #fff; }
+.speaker-score { font-size: 12px; opacity: .8; margin-top: 2px; }
+.speaker-transcript { font-size: 12px; color: rgba(255,255,255,.7); margin-top: 8px; font-style: italic; min-height: 18px; }
+.rec-indicator { position: absolute; top: 12px; right: 14px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); display: none; }
+.rec-indicator.on { display: block; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.speaker-stop { margin-top: 10px; padding: 7px 14px; border: 0.5px solid rgba(255,255,255,.3); border-radius: 6px; background: rgba(0,0,0,.2); color: #fff; font-size: 12px; cursor: pointer; display: none; }
+.speaker-stop.show { display: inline-block; }
+
+.ai-panel { display: flex; flex-direction: column; gap: 10px; }
+.ai-panel-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+
+.ai-flag { padding: 10px 12px; border-radius: 8px; border-left: 3px solid transparent; background: var(--surface); font-size: 12px; }
+.ai-flag.none { border-left-color: var(--ok); }
+.ai-flag.good_point { border-left-color: var(--ok); }
+.ai-flag.weak_argument { border-left-color: var(--warn); }
+.ai-flag.false_claim { border-left-color: var(--accent); }
+.ai-flag.rhetorical_trick { border-left-color: var(--info); }
+.flag-speaker { font-weight: 600; font-size: 11px; margin-bottom: 4px; }
+.flag-text { color: var(--muted); line-height: 1.5; }
+.flag-question { margin-top: 6px; padding: 6px 10px; background: rgba(124,106,247,.1); border-radius: 6px; font-size: 11px; color: var(--purple); font-style: italic; }
+
+.scores-panel { background: var(--surface); border-radius: 10px; padding: 12px 14px; }
+.score-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.score-row:last-child { margin-bottom: 0; }
+.score-name { font-size: 12px; flex: 1; }
+.score-bar-bg { flex: 2; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 3px; transition: width .5s; }
+.score-val { font-size: 11px; color: var(--muted); font-family: var(--mono); min-width: 28px; text-align: right; }
+
+.feed { background: var(--surface); border-radius: 10px; padding: 12px; max-height: 300px; overflow-y: auto; }
+.feed-item { padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; border-left: 3px solid transparent; }
+.feed-item-speaker { font-size: 11px; font-weight: 600; margin-bottom: 3px; }
+.feed-item-text { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.feed-item-meta { font-size: 10px; color: var(--hint); margin-top: 4px; }
+
+/* REPORT */
+.report-section { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 12px; }
+.report-section h3 { font-size: 14px; font-weight: 500; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.position-card { padding: 12px 14px; background: var(--surface2); border-radius: 10px; border-left: 4px solid transparent; margin-bottom: 8px; }
+.pos-speaker { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.pos-position { font-size: 12px; color: var(--muted); margin-bottom: 8px; line-height: 1.5; }
+.pos-strong { font-size: 11px; color: var(--ok); }
+.pos-weak { font-size: 11px; color: var(--accent); margin-top: 3px; }
+.next-q { padding: 8px 12px; background: rgba(124,106,247,.08); border-radius: 8px; font-size: 13px; color: var(--purple); margin-bottom: 6px; }
+
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-box { background: rgba(233,69,96,.1); border: 0.5px solid rgba(233,69,96,.3); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #f09595; margin-bottom: 12px; display: none; }
+.error-box.show { display: block; }
+
+@media (max-width: 700px) {
+  .debate-layout { grid-template-columns: 1fr; }
+  .objective-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<header>
+  <div class="logo">⚔️</div>
+  <div class="brand">
+    <h1>Media Lens — Arena Dibattito</h1>
+    <p>Dibattito aumentato dall'AI in tempo reale</p>
+  </div>
+  <a href="/" class="back-btn">← Media Lens</a>
+</header>
+
+<div class="error-box" id="errorBox"></div>
+
+<!-- ══════════════════ SETUP ══════════════════ -->
+<div id="setupScreen">
+
+  <div class="setup-card">
+    <h2>🔑 Chiave API</h2>
+    <div class="field">
+      <label>Anthropic API Key</label>
+      <input type="password" id="apiKey" placeholder="sk-ant-..." />
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <h2>💬 Argomento del dibattito</h2>
+    <div class="field">
+      <label>Di cosa si discute?</label>
+      <input type="text" id="topicInput" placeholder="Es: La cannabis dovrebbe essere legalizzata in Italia" />
+    </div>
+  </div>
+
+  <div class="setup-card">
+    <h2>👥 Partecipanti</h2>
+    <div class="participants-list" id="participantsList"></div>
+    <button class="btn-add" onclick="addParticipant()">+ Aggiungi partecipante</button>
+  </div>
+
+  <div class="setup-card">
+    <h2>🎯 Obiettivo del dibattito</h2>
+    <div class="objective-grid" id="objectiveGrid">
+      <button class="obj-btn sel" data-obj="facts" onclick="selectObj(this)">
+        <span class="obj-icon">⚖️</span>
+        <span class="obj-label">Chi ha ragione</span>
+        <span class="obj-desc">Analisi fattuale — chi argomenta meglio sui fatti</span>
+      </button>
+      <button class="obj-btn" data-obj="critical" onclick="selectObj(this)">
+        <span class="obj-icon">🧠</span>
+        <span class="obj-label">Pensiero critico</span>
+        <span class="obj-desc">Valuta la qualità del ragionamento di ciascuno</span>
+      </button>
+      <button class="obj-btn" data-obj="synthesis" onclick="selectObj(this)">
+        <span class="obj-icon">🤝</span>
+        <span class="obj-label">Sintesi condivisa</span>
+        <span class="obj-desc">Trova i punti di accordo possibili</span>
+      </button>
+      <button class="obj-btn" data-obj="document" onclick="selectObj(this)">
+        <span class="obj-icon">📄</span>
+        <span class="obj-label">Documenta posizioni</span>
+        <span class="obj-desc">Mappa le posizioni di tutti i partecipanti</span>
+      </button>
+    </div>
+  </div>
+
+  <button class="btn-start" id="startBtn" onclick="startDebate()">⚔️ Inizia il dibattito</button>
+
+</div>
+
+<!-- ══════════════════ DEBATE ══════════════════ -->
+<div id="debateScreen">
+
+  <div class="debate-header">
+    <div class="debate-topic">
+      <div class="topic-label">Argomento</div>
+      <div class="topic-text" id="debateTopic"></div>
+    </div>
+    <span class="turn-counter" id="turnCounter">0 interventi</span>
+    <button class="btn-end" onclick="endDebate()">Chiudi e genera report →</button>
+  </div>
+
+  <div class="debate-layout">
+    <div>
+      <div class="ai-panel-title">Partecipanti — clicca per parlare</div>
+      <div class="speakers-area" id="speakersArea"></div>
+    </div>
+
+    <div class="ai-panel">
+      <div>
+        <div class="ai-panel-title">AI in tempo reale</div>
+        <div id="aiFeed" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto"></div>
+      </div>
+      <div>
+        <div class="ai-panel-title" style="margin-top:12px">Solidità argomenti</div>
+        <div class="scores-panel" id="scoresPanel"></div>
+      </div>
+      <div>
+        <div class="ai-panel-title" style="margin-top:12px">Feed interventi</div>
+        <div class="feed" id="debateFeed"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════ REPORT ══════════════════ -->
+<div id="reportScreen">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+    <h2 style="font-size:20px;font-weight:600">Report finale</h2>
+    <span style="font-size:13px;color:var(--muted)" id="reportTopic"></span>
+    <button onclick="downloadDebateReport()" style="margin-left:auto;padding:8px 16px;border:0.5px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;cursor:pointer">⬇ Scarica</button>
+  </div>
+  <div id="reportContent"></div>
+  <button onclick="location.href='/debate'" style="margin-top:16px;padding:10px 20px;border:0.5px solid var(--purple);border-radius:8px;background:rgba(124,106,247,.1);color:var(--purple);font-size:13px;cursor:pointer;font-family:var(--font)">↩ Nuovo dibattito</button>
+</div>
+
+</div>
+
+<script>
+const COLORS = ['#e94560','#7c6af7','#22c55e','#f59e0b','#38bdf8','#f472b6','#a78bfa','#34d399'];
+let participants = [];
+let selectedObj = 'facts';
+let debateState = {
+  topic: '', objective: '', apiKey: '',
+  turns: 0, transcript: [], analyses: [],
+  scores: {}, recognition: null, activeSpeaker: null
+};
+
+const objLabels = {
+  facts: 'Chi ha ragione sui fatti',
+  critical: 'Allenare il pensiero critico',
+  synthesis: 'Trovare sintesi condivisa',
+  document: 'Documentare le posizioni'
+};
+
+// ── Setup ──────────────────────────────────────────────────────────────────
+
+function addParticipant(name = '') {
+  const color = COLORS[participants.length % COLORS.length];
+  const id = 'p' + Date.now();
+  participants.push({ id, name, color, score: 50 });
+  renderParticipantsList();
+}
+
+function removeParticipant(id) {
+  participants = participants.filter(p => p.id !== id);
+  renderParticipantsList();
+}
+
+function renderParticipantsList() {
+  const list = document.getElementById('participantsList');
+  list.innerHTML = participants.map(p => `
+    <div class="participant-row">
+      <div class="color-dot" style="background:${p.color}"></div>
+      <input type="text" placeholder="Nome partecipante" value="${p.name}"
+        oninput="updateName('${p.id}', this.value)" />
+      <button class="btn-remove" onclick="removeParticipant('${p.id}')">×</button>
+    </div>
+  `).join('');
+}
+
+function updateName(id, name) {
+  const p = participants.find(p => p.id === id);
+  if (p) p.name = name;
+}
+
+function selectObj(btn) {
+  document.querySelectorAll('.obj-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  selectedObj = btn.dataset.obj;
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBox');
+  el.textContent = '⚠ ' + msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 5000);
+}
+
+function startDebate() {
+  const key = document.getElementById('apiKey').value.trim();
+  const topic = document.getElementById('topicInput').value.trim();
+
+  if (!key) return showError('Inserisci la chiave API Anthropic');
+  if (!topic) return showError('Inserisci l\'argomento del dibattito');
+
+  // Sync names
+  document.querySelectorAll('.participant-row input').forEach((inp, i) => {
+    if (participants[i]) participants[i].name = inp.value || 'Partecipante ' + (i + 1);
+  });
+
+  const validP = participants.filter(p => p.name.trim());
+  if (validP.length < 2) return showError('Aggiungi almeno 2 partecipanti');
+
+  debateState = {
+    topic, objective: objLabels[selectedObj], apiKey: key,
+    turns: 0, transcript: [], analyses: [],
+    scores: {}, recognition: null, activeSpeaker: null
+  };
+
+  validP.forEach(p => { debateState.scores[p.id] = 50; });
+
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('debateScreen').style.display = 'block';
+  document.getElementById('debateTopic').textContent = topic;
+
+  renderSpeakers(validP);
+  renderScores(validP);
+}
+
+// ── Debate ─────────────────────────────────────────────────────────────────
+
+function renderSpeakers(parts) {
+  const area = document.getElementById('speakersArea');
+  area.innerHTML = parts.map(p => `
+    <div class="speaker-btn" id="spk_${p.id}" style="border-color:${p.color}20;background:${p.color}08"
+         onclick="toggleSpeaker('${p.id}')">
+      <div class="rec-indicator" id="rec_${p.id}"></div>
+      <div class="speaker-name" style="color:${p.color}">${p.name}</div>
+      <div class="speaker-score" style="color:${p.color}99">Solidità: <span id="sc_${p.id}">50</span>%</div>
+      <div class="speaker-transcript" id="tr_${p.id}">Clicca per iniziare a parlare...</div>
+      <button class="speaker-stop" id="stop_${p.id}" onclick="event.stopPropagation();stopSpeaker('${p.id}')">
+        ✓ Finito — analizza intervento
+      </button>
+    </div>
+  `).join('');
+}
+
+function renderScores(parts) {
+  const panel = document.getElementById('scoresPanel');
+  panel.innerHTML = parts.map(p => `
+    <div class="score-row">
+      <span class="score-name" style="color:${p.color}">${p.name}</span>
+      <div class="score-bar-bg">
+        <div class="score-bar-fill" id="bar_${p.id}" style="width:50%;background:${p.color}"></div>
+      </div>
+      <span class="score-val" id="barval_${p.id}">50</span>
+    </div>
+  `).join('');
+}
+
+let activeRecognitions = {};
+
+function toggleSpeaker(id) {
+  if (debateState.activeSpeaker === id) return;
+  if (debateState.activeSpeaker) stopSpeaker(debateState.activeSpeaker, true);
+  startSpeaker(id);
+}
+
+function startSpeaker(id) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showError('Riconoscimento vocale non supportato. Usa Chrome o Edge.');
+    return;
+  }
+
+  debateState.activeSpeaker = id;
+  document.getElementById('rec_' + id).classList.add('on');
+  document.getElementById('stop_' + id).classList.add('show');
+  document.getElementById('tr_' + id).textContent = '🎙 In ascolto...';
+
+  const rec = new SpeechRecognition();
+  rec.lang = 'it-IT';
+  rec.continuous = true;
+  rec.interimResults = true;
+
+  let buffer = '';
+  rec.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
+      else interim += e.results[i][0].transcript;
+    }
+    if (final) buffer += final;
+    document.getElementById('tr_' + id).textContent = buffer + (interim ? interim : '');
+  };
+
+  rec.onerror = () => {};
+  rec.onend = () => { if (debateState.activeSpeaker === id) rec.start(); };
+  rec.start();
+
+  activeRecognitions[id] = { rec, getBuffer: () => buffer };
+}
+
+async function stopSpeaker(id, silent = false) {
+  const recData = activeRecognitions[id];
+  if (recData) {
+    recData.rec.stop();
+    delete activeRecognitions[id];
+  }
+
+  const text = document.getElementById('tr_' + id)?.textContent || '';
+  document.getElementById('rec_' + id).classList.remove('on');
+  document.getElementById('stop_' + id).classList.remove('show');
+  debateState.activeSpeaker = null;
+
+  if (silent || !text || text.length < 10 || text === '🎙 In ascolto...') return;
+
+  // Find participant
+  const p = participants.find(p => p.id === id);
+  if (!p) return;
+
+  document.getElementById('tr_' + id).textContent = '⏳ AI sta analizzando...';
+
+  try {
+    const history = debateState.transcript
+      .slice(-5)
+      .map(t => `${t.speaker}: ${t.text}`)
+      .join('\n');
+
+    const resp = await fetch('/api/debate/turn', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        anthropic_key: debateState.apiKey,
+        text, speaker: p.name,
+        topic: debateState.topic,
+        objective: debateState.objective,
+        history
+      })
+    });
+
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    // Save
+    debateState.transcript.push({ speaker: p.name, text, color: p.color });
+    debateState.analyses.push(data);
+    debateState.turns++;
+
+    // Update score
+    const newScore = Math.round((debateState.scores[id] * 0.6) + (data.argument_strength * 0.4));
+    debateState.scores[id] = Math.max(0, Math.min(100, newScore));
+    updateScore(id, debateState.scores[id], p.color);
+
+    // Show in AI feed
+    addAiFeedItem(data, p);
+
+    // Add to debate feed
+    addFeedItem(p, text, data);
+
+    document.getElementById('turnCounter').textContent = debateState.turns + ' interventi';
+    document.getElementById('tr_' + id).textContent = 'Clicca per parlare di nuovo...';
+
+  } catch (e) {
+    document.getElementById('tr_' + id).textContent = '⚠ Errore: ' + e.message;
+  }
+}
+
+function updateScore(id, val, color) {
+  const bar = document.getElementById('bar_' + id);
+  const barval = document.getElementById('barval_' + id);
+  const sc = document.getElementById('sc_' + id);
+  if (bar) bar.style.width = val + '%';
+  if (barval) barval.textContent = val;
+  if (sc) sc.textContent = val;
+}
+
+function addAiFeedItem(data, p) {
+  const feed = document.getElementById('aiFeed');
+  const flagClass = data.flag || 'none';
+  const claims = (data.claims || []).filter(c => c.verdict_key !== 'opinion').slice(0, 2);
+
+  const div = document.createElement('div');
+  div.className = `ai-flag ${flagClass}`;
+  div.innerHTML = `
+    <div class="flag-speaker" style="color:${p.color}">${p.name} — ${data.flag_label || 'analizzato'}</div>
+    <div class="flag-text">${data.argument_note || ''}</div>
+    ${claims.map(c => `<div style="margin-top:4px;font-size:11px;color:var(--muted)">
+      ${c.verdict_key === 'false' ? '❌' : c.verdict_key === 'true' ? '✅' : '🟡'} ${c.text.substring(0,80)}
+    </div>`).join('')}
+    ${data.rhetoric_techniques?.length ? `<div style="margin-top:4px;font-size:11px;color:var(--info)">⚠️ ${data.rhetoric_techniques.join(', ')}</div>` : ''}
+    ${data.moderator_question ? `<div class="flag-question">💬 ${data.moderator_question}</div>` : ''}
+  `;
+  feed.insertBefore(div, feed.firstChild);
+}
+
+function addFeedItem(p, text, data) {
+  const feed = document.getElementById('debateFeed');
+  const div = document.createElement('div');
+  div.className = 'feed-item';
+  div.style.borderLeftColor = p.color;
+  div.style.background = p.color + '08';
+  div.innerHTML = `
+    <div class="feed-item-speaker" style="color:${p.color}">${p.name}</div>
+    <div class="feed-item-text">${text.substring(0, 120)}${text.length > 120 ? '...' : ''}</div>
+    <div class="feed-item-meta">Solidità: ${data.argument_strength}%</div>
+  `;
+  feed.insertBefore(div, feed.firstChild);
+}
+
+// ── End & Report ───────────────────────────────────────────────────────────
+
+async function endDebate() {
+  if (debateState.activeSpeaker) stopSpeaker(debateState.activeSpeaker, true);
+  if (debateState.turns < 2) {
+    showError('Serve almeno 2 interventi per generare il report.');
+    return;
+  }
+
+  document.getElementById('debateScreen').style.display = 'none';
+  document.getElementById('reportScreen').style.display = 'block';
+  document.getElementById('reportTopic').textContent = '— ' + debateState.topic;
+  document.getElementById('reportContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><div class="spinner"></div><p style="margin-top:12px">AI sta generando il report finale...</p></div>';
+
+  try {
+    const resp = await fetch('/api/debate/final', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        anthropic_key: debateState.apiKey,
+        topic: debateState.topic,
+        objective: debateState.objective,
+        participants: participants.filter(p => p.name).map(p => p.name),
+        transcript: debateState.transcript.map(t => `${t.speaker}: ${t.text}`).join('\n\n'),
+        analyses: debateState.analyses
+      })
+    });
+
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    renderReport(data);
+
+  } catch (e) {
+    document.getElementById('reportContent').innerHTML = `<div style="color:var(--accent)">⚠ Errore: ${e.message}</div>`;
+  }
+}
+
+function renderReport(data) {
+  const pMap = {};
+  participants.forEach(p => { pMap[p.name] = p.color; });
+
+  let html = '';
+
+  // Winner
+  if (data.winner_facts) {
+    html += `<div class="report-section"><h3>⚖️ Chi aveva ragione sui fatti</h3><p style="font-size:14px;color:var(--text);line-height:1.6">${data.winner_facts}</p></div>`;
+  }
+
+  // Positions
+  if (data.position_summary?.length) {
+    html += `<div class="report-section"><h3>📄 Posizioni dei partecipanti</h3>`;
+    data.position_summary.forEach(pos => {
+      const color = pMap[pos.speaker] || '#7c6af7';
+      html += `<div class="position-card" style="border-left-color:${color}">
+        <div class="pos-speaker" style="color:${color}">${pos.speaker}</div>
+        <div class="pos-position">${pos.position}</div>
+        <div class="pos-strong">✅ Punto forte: ${pos.strongest_point}</div>
+        <div class="pos-weak">⚠️ Punto debole: ${pos.weakest_point}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Shared ground
+  if (data.shared_ground) {
+    html += `<div class="report-section"><h3>🤝 Terreno comune</h3><p style="font-size:13px;color:var(--muted);line-height:1.6">${data.shared_ground}</p></div>`;
+  }
+
+  // Critical thinking
+  if (data.critical_thinking_notes?.length) {
+    html += `<div class="report-section"><h3>🧠 Qualità del pensiero critico</h3>`;
+    data.critical_thinking_notes.forEach(n => {
+      const color = pMap[n.speaker] || '#7c6af7';
+      html += `<div style="padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:6px;border-left:3px solid ${color}"><strong style="color:${color}">${n.speaker}:</strong> <span style="font-size:13px;color:var(--muted)">${n.note}</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Key claims
+  if (data.key_claims_verified?.length) {
+    html += `<div class="report-section"><h3>🔍 Claim chiave verificati</h3>`;
+    data.key_claims_verified.forEach(c => {
+      const color = pMap[c.speaker] || '#7c6af7';
+      const icon = c.verdict?.toLowerCase().includes('falso') ? '❌' : c.verdict?.toLowerCase().includes('vero') ? '✅' : '🟡';
+      html += `<div style="padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:6px"><span style="font-size:11px;color:${color}">${c.speaker}</span> — ${icon} <span style="font-size:13px;color:var(--muted)">${c.claim}</span> <span style="font-size:11px;color:var(--hint)">(${c.verdict})</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Overall
+  if (data.overall_quality) {
+    html += `<div class="report-section"><h3>📊 Valutazione complessiva</h3><p style="font-size:13px;color:var(--muted);line-height:1.6">${data.overall_quality}</p></div>`;
+  }
+
+  // Next questions
+  if (data.next_questions?.length) {
+    html += `<div class="report-section"><h3>💭 Domande aperte rimaste</h3>`;
+    data.next_questions.forEach(q => {
+      html += `<div class="next-q">${q}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('reportContent').innerHTML = html;
+}
+
+function downloadDebateReport() {
+  const content = document.getElementById('reportContent').innerHTML;
+  const topic = debateState.topic;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Report Dibattito — ${topic}</title>
+  <style>body{font-family:sans-serif;padding:32px;max-width:800px;margin:0 auto;color:#111}h1{color:#7c6af7;margin-bottom:8px}h3{margin:20px 0 10px;color:#333}.report-section{margin:16px 0;padding:16px;border:1px solid #ddd;border-radius:8px}.position-card{padding:10px 14px;border-left:4px solid #7c6af7;margin-bottom:8px;background:#f9f9f9}.next-q{padding:8px 12px;background:#f0eeff;border-radius:6px;margin-bottom:6px;color:#7c6af7}</style>
+  </head><body><h1>Report Dibattito</h1><p style="color:#888">${topic} — ${new Date().toLocaleString('it-IT')}</p>${content}</body></html>`;
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'dibattito-' + new Date().toISOString().slice(0, 10) + '.html';
+  a.click();
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+addParticipant('');
+addParticipant('');
+</script>
+</body>
+</html>
