@@ -84,7 +84,7 @@ def call_claude(prompt, api_key):
             "anthropic-version": "2023-06-01"
         },
         json={
-            "model": "claude-sonnet-4-20250514",
+            "model": "claude-sonnet-4-5",
             "max_tokens": 2000,
             "messages": [{"role": "user", "content": prompt}]
         },
