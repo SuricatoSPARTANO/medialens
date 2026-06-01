@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Media Lens — Video</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:monospace;background:#111;color:#ccc;height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:12px}
+.topbar{height:36px;background:#0a0a0a;border-bottom:1px solid #222;display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0}
+.tb-logo{color:#e94560;letter-spacing:.15em;font-size:11px;text-decoration:none}
+.tb-title{color:#555;font-size:11px}
+.tb-right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.tb-btn{padding:3px 10px;border:1px solid #333;background:transparent;color:#666;font-size:10px;cursor:pointer;font-family:monospace}
+.tb-btn:hover{color:#ccc;border-color:#555}
+.tb-btn.red{background:#e94560;border-color:#e94560;color:#fff}
+.api-input{background:#0a0a0a;border:1px solid #222;color:#555;padding:3px 8px;font-size:10px;font-family:monospace;width:200px;outline:none}
+.api-input:focus{border-color:#444;color:#ccc}
+
+.body{flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+
+/* LEFT */
+.left{display:flex;flex-direction:column;border-right:1px solid #222;background:#0a0a0a;overflow:hidden}
+.video-wrap{flex:1;background:#000;position:relative;display:flex;align-items:center;justify-content:center;min-height:0}
+.video-inner{width:100%;height:100%;position:relative}
+.video-input{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px}
+.vi-label{font-size:10px;color:#444;letter-spacing:.1em}
+.vi-row{display:flex;gap:6px;width:100%;max-width:360px}
+.vi-input{flex:1;background:#111;border:1px solid #333;color:#ccc;padding:6px 10px;font-size:11px;font-family:monospace;outline:none}
+.vi-input:focus{border-color:#555}
+.vi-btn{padding:6px 12px;background:#e94560;border:none;color:#fff;font-size:10px;cursor:pointer;font-family:monospace}
+.vi-btn:disabled{opacity:.4;cursor:not-allowed}
+.vi-hint{font-size:10px;color:#2a2a2a}
+
+/* Trascrizione area (per analisi con SpeechRecognition) */
+.transcript-area{padding:6px 12px;border-top:1px solid #1a1a1a;background:#0a0a0a;min-height:48px;max-height:80px;overflow-y:auto;flex-shrink:0}
+.ta-label{font-size:9px;color:#333;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.ta-text{font-size:11px;color:#555;line-height:1.5;font-family:Georgia,serif;font-style:italic}
+.ta-text.active{color:#888}
+
+/* Overlay evento */
+.event-overlay{position:absolute;bottom:10px;left:10px;right:10px;padding:7px 10px;font-size:11px;border-left:3px solid;background:rgba(0,0,0,.88);display:none;animation:fadeIn .3s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+.event-overlay.show{display:block}
+.event-overlay.claim{border-color:#e94560}
+.event-overlay.rhetoric{border-color:#f59e0b}
+.event-overlay.omission{border-color:#7c6af7}
+.event-overlay.verified{border-color:#22c55e}
+.eo-type{font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
+.eo-type.claim{color:#e94560}.eo-type.rhetoric{color:#f59e0b}.eo-type.omission{color:#7c6af7}.eo-type.verified{color:#22c55e}
+.eo-text{font-size:10px;color:#bbb;line-height:1.4}
+
+/* Timeline */
+.timeline{height:48px;border-top:1px solid #222;padding:8px 12px 0;flex-shrink:0;background:#0a0a0a}
+.tl-row{display:flex;align-items:center;gap:8px}
+.tl-time{font-size:10px;color:#555;min-width:34px;font-family:monospace}
+.tl-track{flex:1;height:4px;background:#222;position:relative;cursor:pointer;border-radius:2px}
+.tl-fill{height:100%;background:#333;border-radius:2px;transition:width .5s linear}
+.tl-marker-layer{position:absolute;inset:0}
+.tl-dot{position:absolute;top:-4px;width:12px;height:12px;border-radius:50%;transform:translateX(-50%);cursor:pointer;border:2px solid #111;z-index:2}
+.tl-dot:hover{transform:translateX(-50%) scale(1.5)}
+.tl-dot.claim{background:#e94560}.tl-dot.rhetoric{background:#f59e0b}.tl-dot.omission{background:#7c6af7}.tl-dot.verified{background:#22c55e}
+.tl-head{position:absolute;top:-5px;width:2px;height:14px;background:#ccc;transform:translateX(-50%);pointer-events:none}
+
+/* Controls */
+.controls{height:32px;border-top:1px solid #222;display:flex;align-items:center;padding:0 10px;gap:8px;flex-shrink:0;background:#0a0a0a}
+.ctrl-btn{background:none;border:1px solid #2a2a2a;color:#777;width:24px;height:24px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center}
+.ctrl-btn:hover{color:#ccc;border-color:#444}
+.ctrl-time{font-size:10px;color:#555;font-family:monospace;min-width:90px}
+.ctrl-speed{font-size:10px;color:#555;cursor:pointer;padding:2px 5px;border:1px solid #222;background:none;font-family:monospace;margin-left:auto}
+
+/* RIGHT */
+.right{display:flex;flex-direction:column;overflow:hidden}
+.analysis-header{padding:8px 12px;border-bottom:1px solid #222;display:flex;align-items:center;gap:6px;flex-shrink:0;background:#0a0a0a}
+.ah-filters{display:flex;gap:3px;margin-left:auto}
+.filter-btn{padding:2px 8px;border:1px solid #2a2a2a;background:transparent;font-size:9px;cursor:pointer;font-family:monospace;color:#555;border-radius:2px}
+.filter-btn.active.f-claim{border-color:#e94560;color:#e94560}
+.filter-btn.active.f-rhetoric{border-color:#f59e0b;color:#f59e0b}
+.filter-btn.active.f-omission{border-color:#7c6af7;color:#7c6af7}
+.filter-btn.active.f-verified{border-color:#22c55e;color:#22c55e}
+.analysis-list{flex:1;overflow-y:auto;padding:8px}
+.analysis-empty{padding:32px;text-align:center;color:#2a2a2a;font-size:10px;letter-spacing:.08em;line-height:1.8}
+.an-item{border-left:2px solid;padding:8px 10px;margin-bottom:6px;cursor:pointer;background:#0f0f0f;animation:slideIn .25s ease}
+@keyframes slideIn{from{opacity:0;transform:translateX(6px)}to{opacity:1;transform:translateX(0)}}
+.an-item:hover{background:#141414}
+.an-item.claim{border-color:#e94560}.an-item.rhetoric{border-color:#f59e0b}.an-item.omission{border-color:#7c6af7}.an-item.verified{border-color:#22c55e}
+.an-item.active-item{background:#161616;outline:1px solid #2a2a2a}
+.an-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.an-tag{font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border:1px solid;color:#777}
+.an-tag.claim{border-color:#e94560}.an-tag.rhetoric{border-color:#f59e0b}.an-tag.omission{border-color:#7c6af7}.an-tag.verified{border-color:#22c55e}
+.an-time{font-size:9px;color:#555;cursor:pointer;text-decoration:underline}
+.an-time:hover{color:#888}
+.an-text{font-size:11px;color:#aaa;line-height:1.5}
+.analysis-footer{padding:8px 12px;border-top:1px solid #222;flex-shrink:0;background:#0a0a0a}
+.af-btn{width:100%;padding:7px;border:1px solid #2a2a2a;background:transparent;color:#555;font-size:10px;cursor:pointer;font-family:monospace}
+.af-btn:hover{color:#ccc;border-color:#555}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#111}::-webkit-scrollbar-thumb{background:#2a2a2a}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/" class="tb-logo">ML·</a>
+  <span class="tb-title">video</span>
+  <div class="tb-right">
+    <input class="api-input" id="apiKey" type="password" placeholder="sk-ant-... (opzionale)"/>
+    <button class="tb-btn" onclick="resetAll()">reset</button>
+    <button class="tb-btn red" onclick="addToCanvas()">→ canvas</button>
+  </div>
+</div>
+
+<div class="body">
+  <div class="left">
+    <div class="video-wrap">
+      <div class="video-inner" id="videoInner">
+        <div class="video-input" id="videoInput">
+          <div class="vi-label">// inserisci link video</div>
+          <div class="vi-row">
+            <input class="vi-input" id="urlInput" placeholder="https://youtube.com/..." onkeydown="if(event.key==='Enter')loadURL()"/>
+            <button class="vi-btn" id="loadBtn" onclick="loadURL()">carica</button>
+          </div>
+          <div class="vi-hint">oppure trascina un file video</div>
+        </div>
+      </div>
+      <div class="event-overlay" id="eventOverlay">
+        <div class="eo-type" id="eoType"></div>
+        <div class="eo-text" id="eoText"></div>
+      </div>
+    </div>
+
+    <div class="transcript-area" id="transcriptArea" style="display:none">
+      <div class="ta-label">// trascrizione live (microfono)</div>
+      <div class="ta-text" id="taText"></div>
+    </div>
+
+    <div class="timeline">
+      <div class="tl-row">
+        <span class="tl-time" id="tlCurrent">0:00</span>
+        <div class="tl-track" id="tlTrack" onclick="seekTimeline(event)">
+          <div class="tl-fill" id="tlFill" style="width:0%"></div>
+          <div class="tl-marker-layer" id="tlMarkers"></div>
+          <div class="tl-head" id="tlHead" style="left:0%"></div>
+        </div>
+        <span class="tl-time" id="tlTotal" style="text-align:right">0:00</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="ctrl-btn" id="btnPlay" onclick="togglePlay()">▶</button>
+      <button class="ctrl-btn" onclick="skip(-10)">«</button>
+      <button class="ctrl-btn" onclick="skip(10)">»</button>
+      <span class="ctrl-time" id="ctrlTime">0:00 / 0:00</span>
+      <button class="ctrl-speed" onclick="cycleSpeed()" id="speedBtn">1×</button>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="analysis-header">
+      <div class="ah-filters">
+        <button class="filter-btn f-claim active" onclick="toggleFilter('claim',this)">claim</button>
+        <button class="filter-btn f-rhetoric active" onclick="toggleFilter('rhetoric',this)">retorica</button>
+        <button class="filter-btn f-omission active" onclick="toggleFilter('omission',this)">omissioni</button>
+        <button class="filter-btn f-verified active" onclick="toggleFilter('verified',this)">verificati</button>
+      </div>
+    </div>
+    <div class="analysis-list" id="analysisList">
+      <div class="analysis-empty" id="emptyState">
+        // carica un video<br>
+        l'analisi parte mentre guardi
+      </div>
+    </div>
+    <div class="analysis-footer">
+      <button class="af-btn" onclick="addToCanvas()">→ aggiungi al canvas</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Per il video usiamo SpeechRecognition sul microfono dell'utente
+// mentre guarda il video — analisi ogni ~20 secondi di trascrizione
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null, transcriptBuffer='', analysisBuffer='';
+let chunkTimer=null, videoLoaded=false;
+let cur=0, total=0, playing=false, speed=1, simTimer=null;
+let rendered=new Set(), filters=new Set(['claim','rhetoric','omission','verified']);
+let chunkStart=0, lastAnalysisTime=0;
+
+function getKey(){ return document.getElementById('apiKey').value.trim(); }
+function fmt(s){ return Math.floor(s/60)+':'+(String(Math.floor(s%60)).padStart(2,'0')); }
+
+// ── VIDEO LOAD ────────────────────────────────────────────────────────────
+function loadURL(){
+  const url=document.getElementById('urlInput').value.trim();
+  if(!url) return;
+  const btn=document.getElementById('loadBtn');
+  btn.disabled=true;
+
+  const m=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
+  if(m){
+    const id=m[1];
+    document.getElementById('videoInput').style.display='none';
+    const iframe=document.createElement('iframe');
+    iframe.src=`https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1`;
+    iframe.allow='autoplay;encrypted-media';
+    iframe.style.cssText='position:absolute;inset:0;width:100%;height:100%;border:none';
+    document.getElementById('videoInner').appendChild(iframe);
+    videoLoaded=true;
+    setupTracking(600); // default 10 min per YouTube
+    startMicAnalysis();
+  } else {
+    btn.disabled=false;
+    alert('URL non riconosciuta. Usa un link YouTube.\n\nPer video propri: trascina il file nella zona video.');
+  }
+}
+
+function setupTracking(dur){
+  total=dur; cur=0;
+  document.getElementById('tlTotal').textContent=fmt(dur);
+  document.getElementById('ctrlTime').textContent='0:00 / '+fmt(dur);
+  // Avvia simulazione progresso (per YouTube non possiamo leggere il currentTime via iframe)
+  simTimer=setInterval(()=>{
+    if(!playing) return;
+    cur=Math.min(cur+speed, total);
+    updateUI();
+    if(cur>=total){playing=false;clearInterval(simTimer);document.getElementById('btnPlay').textContent='▶';}
+  },1000);
+}
+
+// ── MIC ANALYSIS ─────────────────────────────────────────────────────────
+// Ascolta il microfono mentre l'utente guarda il video
+// e analizza ogni ~30 parole di trascrizione
+function startMicAnalysis(){
+  if(!SR){
+    document.getElementById('transcriptArea').style.display='block';
+    document.getElementById('taText').textContent='Riconoscimento vocale non disponibile in questo browser. Usa Chrome per l\'analisi in tempo reale.';
+    return;
+  }
+  document.getElementById('transcriptArea').style.display='block';
+  document.getElementById('taText').textContent='microfono attivo — l\'AI analizza la traccia audio...';
+  document.getElementById('taText').classList.add('active');
+
+  rec=new SR();
+  rec.lang='it-IT'; rec.continuous=true; rec.interimResults=true;
+  let sessionBuffer='';
+
+  rec.onresult=e=>{
+    let final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final+=e.results[i][0].transcript+' ';
+    }
+    if(final){
+      sessionBuffer+=final;
+      transcriptBuffer+=final;
+      document.getElementById('taText').textContent=sessionBuffer.slice(-200);
+      // Analizza ogni ~40 parole
+      const words=transcriptBuffer.split(' ').filter(w=>w);
+      if(words.length>=40 && (cur-lastAnalysisTime)>=20){
+        const chunk=transcriptBuffer.trim();
+        transcriptBuffer='';
+        lastAnalysisTime=cur;
+        analyzeChunk(chunk);
+      }
+    }
+  };
+  rec.onerror=e=>{
+    if(e.error==='not-allowed'){
+      document.getElementById('taText').textContent='Permesso microfono negato.';
+      document.getElementById('taText').classList.remove('active');
+    }
+  };
+  rec.onend=()=>{ if(videoLoaded) try{rec.start();}catch(e){} };
+  try{rec.start();}catch(e){
+    document.getElementById('taText').textContent='Microfono non disponibile: '+e.message;
+  }
+}
+
+async function analyzeChunk(chunk){
+  const start=fmt(Math.max(0,cur-30));
+  const end=fmt(cur);
+  try{
+    const resp=await fetch('/api/video/chunk',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chunk,start,end,anthropic_key:getKey()})
+    });
+    const data=await resp.json();
+    if(data.events&&data.events.length){
+      data.events.forEach((ev,i)=>{
+        const uid=`${cur}-${i}`;
+        if(!rendered.has(uid)){
+          rendered.add(uid);
+          addMarker(ev,cur,uid);
+          addToPanel(ev,cur,uid);
+          showOverlay(ev);
+        }
+      });
+    }
+  } catch(e){ console.error('chunk error:',e); }
+}
+
+// ── PLAYBACK (simulato per YouTube) ──────────────────────────────────────
+function togglePlay(){
+  if(!videoLoaded){alert('Carica prima un video.');return;}
+  playing=!playing;
+  document.getElementById('btnPlay').textContent=playing?'⏸':'▶';
+}
+
+function skip(s){ cur=Math.max(0,Math.min(total,cur+s)); updateUI(); }
+
+function cycleSpeed(){
+  const sp=[1,1.5,2,0.5]; const i=sp.indexOf(speed);
+  speed=sp[(i+1)%sp.length];
+  document.getElementById('speedBtn').textContent=speed+'×';
+}
+
+function seekTimeline(e){
+  if(!total) return;
+  const r=document.getElementById('tlTrack').getBoundingClientRect();
+  cur=Math.floor(Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*total);
+  updateUI();
+}
+
+function updateUI(){
+  const pct=(cur/total)*100;
+  document.getElementById('tlFill').style.width=pct+'%';
+  document.getElementById('tlHead').style.left=pct+'%';
+  document.getElementById('tlCurrent').textContent=fmt(cur);
+  document.getElementById('ctrlTime').textContent=fmt(cur)+' / '+fmt(total);
+}
+
+// ── EVENTI ────────────────────────────────────────────────────────────────
+function addMarker(ev,t,uid){
+  const dot=document.createElement('div');
+  dot.className='tl-dot '+ev.type;
+  dot.style.left=(t/total*100)+'%';
+  dot.title=fmt(t);
+  dot.onclick=e=>{e.stopPropagation();cur=t;updateUI();highlightItem(uid);};
+  document.getElementById('tlMarkers').appendChild(dot);
+}
+
+function addToPanel(ev,t,uid){
+  document.getElementById('emptyState')?.remove();
+  const list=document.getElementById('analysisList');
+  const typeLabel={claim:'claim',rhetoric:'retorica',omission:'omissione',verified:'verificato'}[ev.type]||ev.type;
+  const div=document.createElement('div');
+  div.className='an-item '+ev.type;
+  div.id='ev-'+uid;
+  div.innerHTML=`
+    <div class="an-header">
+      <span class="an-tag ${ev.type}">${typeLabel}</span>
+      <span class="an-time" onclick="event.stopPropagation();cur=${t};updateUI()">${fmt(t)}</span>
+    </div>
+    <div class="an-text">${ev.text}${ev.quote?'<br><span style="font-size:10px;color:#555;font-style:italic">"'+ev.quote.substring(0,60)+'"</span>':''}</div>`;
+  div.onclick=()=>{cur=t;updateUI();highlightItem(uid);};
+  list.insertBefore(div,list.firstChild);
+  applyFilters();
+}
+
+function showOverlay(ev){
+  const typeLabel={claim:'claim',rhetoric:'retorica',omission:'omissione',verified:'verificato'}[ev.type];
+  const ov=document.getElementById('eventOverlay');
+  ov.className='event-overlay show '+ev.type;
+  const et=document.getElementById('eoType');
+  et.className='eo-type '+ev.type;
+  et.textContent=typeLabel;
+  document.getElementById('eoText').textContent=(ev.text||'').substring(0,80);
+  clearTimeout(ov._t);
+  ov._t=setTimeout(()=>ov.classList.remove('show'),3000);
+}
+
+function highlightItem(uid){
+  document.querySelectorAll('.an-item').forEach(el=>el.classList.remove('active-item'));
+  document.getElementById('ev-'+uid)?.classList.add('active-item');
+}
+
+function toggleFilter(type,btn){
+  if(filters.has(type)){filters.delete(type);btn.classList.remove('active');}
+  else{filters.add(type);btn.classList.add('active');}
+  applyFilters();
+}
+
+function applyFilters(){
+  document.querySelectorAll('.an-item').forEach(el=>{
+    el.style.display=[...filters].some(f=>el.classList.contains(f))?'block':'none';
+  });
+}
+
+function addToCanvas(){
+  const count=document.querySelectorAll('.an-item').length;
+  alert('// Nodo video aggiunto al canvas con '+count+' eventi rilevati');
+}
+
+function resetAll(){
+  if(rec){try{rec.stop();}catch(e){} rec=null;}
+  if(simTimer) clearInterval(simTimer);
+  videoLoaded=false; cur=0; total=0; playing=false; speed=1;
+  rendered.clear(); transcriptBuffer=''; lastAnalysisTime=0;
+  document.getElementById('tlFill').style.width='0%';
+  document.getElementById('tlHead').style.left='0%';
+  document.getElementById('tlMarkers').innerHTML='';
+  document.getElementById('analysisList').innerHTML='<div class="analysis-empty" id="emptyState">// carica un video<br>l\'analisi parte mentre guardi</div>';
+  document.getElementById('btnPlay').textContent='▶';
+  document.getElementById('speedBtn').textContent='1×';
+  document.getElementById('transcriptArea').style.display='none';
+  document.getElementById('videoInner').innerHTML='<div class="video-input" id="videoInput"><div class="vi-label">// inserisci link video</div><div class="vi-row"><input class="vi-input" id="urlInput" placeholder="https://youtube.com/..." onkeydown="if(event.key===\'Enter\')loadURL()"/><button class="vi-btn" id="loadBtn" onclick="loadURL()">carica</button></div><div class="vi-hint">oppure trascina un file video</div></div>';
+}
+</script>
+</body>
+</html>
