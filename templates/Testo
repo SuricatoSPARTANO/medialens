@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Media Lens — Testo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:monospace;background:#111;color:#ccc;height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:12px}
+.topbar{height:36px;background:#0a0a0a;border-bottom:1px solid #222;display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0}
+.tb-logo{color:#e94560;letter-spacing:.15em;font-size:11px;text-decoration:none}
+.tb-title{color:#555;font-size:11px}
+.tb-right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.tb-btn{padding:3px 10px;border:1px solid #333;background:transparent;color:#666;font-size:10px;cursor:pointer;font-family:monospace}
+.tb-btn:hover{color:#ccc;border-color:#555}
+.tb-btn.red{background:#e94560;border-color:#e94560;color:#fff}
+.api-input{background:#0a0a0a;border:1px solid #222;color:#555;padding:3px 8px;font-size:10px;font-family:monospace;width:200px;outline:none}
+.api-input:focus{border-color:#444;color:#ccc}
+
+.body{flex:1;display:flex;overflow:hidden}
+
+/* INPUT */
+.input-screen{flex:1;display:flex;align-items:center;justify-content:center;background:#111;padding:24px}
+.input-box{width:100%;max-width:560px;display:flex;flex-direction:column;gap:12px}
+.input-label{font-size:9px;letter-spacing:.14em;color:#555;text-transform:uppercase}
+.input-textarea{width:100%;height:200px;background:#0a0a0a;border:1px solid #2a2a2a;padding:14px;font-family:Georgia,serif;font-size:14px;color:#ccc;resize:none;outline:none;line-height:1.7}
+.input-textarea:focus{border-color:#444}
+.input-footer{display:flex;justify-content:space-between;align-items:center}
+.input-hint{font-size:10px;color:#333}
+.input-btn{padding:8px 20px;background:#e94560;border:none;color:#fff;font-size:10px;cursor:pointer;font-family:monospace;letter-spacing:.06em}
+.input-btn:disabled{opacity:.4;cursor:not-allowed}
+.input-error{font-size:10px;color:#e94560;display:none}
+
+/* ANALYSIS */
+.analysis-screen{flex:1;display:none;overflow:hidden}
+.analysis-screen.active{display:grid;grid-template-columns:1fr 1fr}
+
+/* LEFT — TEXT */
+.text-col{padding:28px 36px;overflow-y:auto;background:#0d0d0d;border-right:1px solid #1e1e1e;line-height:1.9;font-size:14px;color:#bbb;font-family:Georgia,serif}
+.text-col p{margin-bottom:1.2em}
+.hl{cursor:pointer;border-bottom:2px solid transparent;transition:background .15s}
+.hl.claim{border-bottom-color:#e94560}
+.hl.rhetoric{border-bottom-color:#f59e0b}
+.hl.omission{border-bottom-color:#7c6af7;border-bottom-style:dashed}
+.hl.verified{border-bottom-color:#22c55e}
+.hl:hover{background:rgba(255,255,255,.04)}
+.hl.active-hl.claim{background:rgba(233,69,96,.1)}
+.hl.active-hl.rhetoric{background:rgba(245,158,11,.1)}
+.hl.active-hl.omission{background:rgba(124,106,247,.1)}
+.hl.active-hl.verified{background:rgba(34,197,94,.1)}
+
+/* RIGHT — ANNOTATIONS */
+.annot-col{display:flex;flex-direction:column;overflow:hidden;background:#111}
+.annot-header{padding:8px 12px;border-bottom:1px solid #222;display:flex;align-items:center;gap:6px;flex-shrink:0;background:#0a0a0a}
+.annot-filters{display:flex;gap:3px;margin-left:auto}
+.af-btn{padding:2px 8px;border:1px solid #2a2a2a;background:transparent;font-size:9px;cursor:pointer;font-family:monospace;color:#555;border-radius:2px}
+.af-btn.active.f-claim{border-color:#e94560;color:#e94560}
+.af-btn.active.f-rhetoric{border-color:#f59e0b;color:#f59e0b}
+.af-btn.active.f-omission{border-color:#7c6af7;color:#7c6af7}
+.af-btn.active.f-verified{border-color:#22c55e;color:#22c55e}
+.ai-reading{padding:10px 12px;border-bottom:1px solid #1e1e1e;font-size:10px;color:#444;display:flex;align-items:center;gap:8px;letter-spacing:.06em;background:#0a0a0a}
+.ai-dot{width:6px;height:6px;border-radius:50%;background:#444;animation:pulse 1.2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+.annot-list{flex:1;overflow-y:auto;padding:10px}
+.annot-empty{padding:40px 20px;text-align:center;color:#2a2a2a;font-size:10px;letter-spacing:.08em;line-height:1.8}
+.annot-item{background:#0f0f0f;border:1px solid #1e1e1e;border-left:2px solid;padding:10px 12px;margin-bottom:6px;cursor:pointer;animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.annot-item:hover{background:#141414}
+.annot-item.claim{border-left-color:#e94560}
+.annot-item.rhetoric{border-left-color:#f59e0b}
+.annot-item.omission{border-left-color:#7c6af7}
+.annot-item.verified{border-left-color:#22c55e}
+.annot-item.active-ann{background:#161616;border-color:#333}
+.ann-tag{display:inline-block;font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:1px 6px;border:1px solid;margin-bottom:6px;color:#777}
+.ann-tag.claim{border-color:#e94560}
+.ann-tag.rhetoric{border-color:#f59e0b}
+.ann-tag.omission{border-color:#7c6af7}
+.ann-tag.verified{border-color:#22c55e}
+.ann-quote{font-size:11px;color:#555;font-style:italic;margin-bottom:6px;border-left:2px solid #2a2a2a;padding-left:8px;line-height:1.5;font-family:Georgia,serif}
+.ann-text{font-size:10px;color:#666;line-height:1.6}
+.annot-footer{padding:8px 12px;border-top:1px solid #222;flex-shrink:0;background:#0a0a0a}
+.annot-footer-btn{width:100%;padding:7px;border:1px solid #2a2a2a;background:transparent;color:#555;font-size:10px;cursor:pointer;font-family:monospace}
+.annot-footer-btn:hover{color:#ccc;border-color:#555}
+.sommario{padding:8px 10px;background:#0a0a0a;border-top:1px solid #1e1e1e;font-size:10px;color:#555;line-height:1.5;display:none}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0a0a0a}::-webkit-scrollbar-thumb{background:#2a2a2a}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/" class="tb-logo">ML·</a>
+  <span class="tb-title">testo</span>
+  <div class="tb-right">
+    <input class="api-input" id="apiKey" type="password" placeholder="sk-ant-... (opzionale se configurata su server)"/>
+    <button class="tb-btn" onclick="resetAll()">reset</button>
+    <button class="tb-btn red" onclick="addToCanvas()">→ canvas</button>
+  </div>
+</div>
+
+<div class="body">
+  <div class="input-screen" id="inputScreen">
+    <div class="input-box">
+      <div class="input-label">// incolla il testo da analizzare</div>
+      <textarea class="input-textarea" id="textInput" placeholder="Articolo, post, discorso, trascrizione..."></textarea>
+      <div class="input-error" id="inputError"></div>
+      <div class="input-footer">
+        <span class="input-hint">le sottolineature appaiono progressivamente</span>
+        <button class="input-btn" id="analyzeBtn" onclick="startAnalysis()">analizza →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="analysis-screen" id="analysisScreen">
+    <div class="text-col" id="textCol"></div>
+    <div class="annot-col">
+      <div class="annot-header">
+        <div class="annot-filters">
+          <button class="af-btn f-claim active" onclick="toggleFilter('claim',this)">claim</button>
+          <button class="af-btn f-rhetoric active" onclick="toggleFilter('rhetoric',this)">retorica</button>
+          <button class="af-btn f-omission active" onclick="toggleFilter('omission',this)">omissioni</button>
+          <button class="af-btn f-verified active" onclick="toggleFilter('verified',this)">verificati</button>
+        </div>
+      </div>
+      <div class="ai-reading" id="aiReading" style="display:none">
+        <div class="ai-dot"></div>
+        <span id="aiReadingText">analisi in corso...</span>
+      </div>
+      <div class="annot-list" id="annotList">
+        <div class="annot-empty" id="annotEmpty">// le annotazioni appariranno durante la lettura</div>
+      </div>
+      <div class="sommario" id="sommario"></div>
+      <div class="annot-footer">
+        <button class="annot-footer-btn" onclick="resetAll()">← nuovo testo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let filters=new Set(['claim','rhetoric','omission','verified']);
+let annotTimer=null;
+
+function getKey(){ return document.getElementById('apiKey').value.trim(); }
+
+async function startAnalysis(){
+  const text=document.getElementById('textInput').value.trim();
+  if(!text||text.length<20){showError('Testo troppo breve');return;}
+  showError('');
+  const btn=document.getElementById('analyzeBtn');
+  btn.disabled=true; btn.textContent='analisi...';
+
+  try{
+    const resp=await fetch('/api/testo/analizza',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text,anthropic_key:getKey()})
+    });
+    const data=await resp.json();
+    if(data.error) throw new Error(data.error);
+    renderAnalysis(text,data);
+  } catch(e){
+    showError('Errore: '+e.message);
+    btn.disabled=false; btn.textContent='analizza →';
+  }
+}
+
+function renderAnalysis(text,data){
+  document.getElementById('inputScreen').style.display='none';
+  document.getElementById('analysisScreen').classList.add('active');
+  const paragraphs=text.split('\n\n').filter(p=>p.trim());
+  document.getElementById('textCol').innerHTML=paragraphs.map(p=>`<p>${esc(p)}</p>`).join('');
+  const annotations=data.annotations||[];
+  annotations.forEach(a=>markHL(a));
+  document.getElementById('aiReading').style.display='flex';
+  let i=0;
+  annotTimer=setInterval(()=>{
+    document.getElementById('aiReadingText').textContent='lettura in corso...';
+    if(i<annotations.length){
+      revealHL(annotations[i].id);
+      addAnnotation(annotations[i]);
+      i++;
+    } else {
+      clearInterval(annotTimer);
+      document.getElementById('aiReading').style.display='none';
+      if(data.sommario){
+        const s=document.getElementById('sommario');
+        s.textContent='// '+data.sommario;
+        s.style.display='block';
+      }
+    }
+  },1000);
+}
+
+function esc(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function markHL(ann){
+  const col=document.getElementById('textCol');
+  const walker=document.createTreeWalker(col,NodeFilter.SHOW_TEXT);
+  let node;
+  while(node=walker.nextNode()){
+    const txt=node.textContent;
+    const si=txt.indexOf(ann.startStr);
+    if(si!==-1){
+      const ei=txt.indexOf(ann.endStr,si);
+      if(ei!==-1){
+        const ef=ei+ann.endStr.length;
+        const span=document.createElement('span');
+        span.className=`hl ${ann.type}`;
+        span.id=`hl-${ann.id}`;
+        span.textContent=txt.substring(si,ef);
+        span.style.borderBottomWidth='0';
+        span.onclick=()=>{scrollToAnn(ann.id);highlightPair(ann.id);};
+        const p=node.parentNode;
+        p.insertBefore(document.createTextNode(txt.substring(0,si)),node);
+        p.insertBefore(span,node);
+        p.insertBefore(document.createTextNode(txt.substring(ef)),node);
+        p.removeChild(node);
+        break;
+      }
+    }
+  }
+}
+
+function revealHL(id){
+  const el=document.getElementById('hl-'+id);
+  if(el){el.style.borderBottomWidth='2px';el.style.transition='border-bottom-width .4s';}
+}
+
+function addAnnotation(ann){
+  document.getElementById('annotEmpty')?.remove();
+  const list=document.getElementById('annotList');
+  const label={claim:'claim',rhetoric:'retorica',omission:'omissione',verified:'verificato'}[ann.type]||ann.type;
+  const div=document.createElement('div');
+  div.className=`annot-item ${ann.type}`;
+  div.id=`ann-${ann.id}`;
+  div.innerHTML=`<span class="ann-tag ${ann.type}">${label}</span><div class="ann-quote">"${(ann.quote||'').substring(0,80)}"</div><div class="ann-text">${ann.text}</div>`;
+  div.onclick=()=>{scrollToHL(ann.id);highlightPair(ann.id);};
+  list.appendChild(div);
+  list.scrollTop=list.scrollHeight;
+  applyFilters();
+}
+
+function highlightPair(id){
+  document.querySelectorAll('.hl').forEach(el=>el.classList.remove('active-hl'));
+  document.getElementById('hl-'+id)?.classList.add('active-hl');
+  document.querySelectorAll('.annot-item').forEach(el=>el.classList.remove('active-ann'));
+  document.getElementById('ann-'+id)?.classList.add('active-ann');
+}
+
+function scrollToAnn(id){ document.getElementById('ann-'+id)?.scrollIntoView({behavior:'smooth',block:'center'}); }
+function scrollToHL(id){ document.getElementById('hl-'+id)?.scrollIntoView({behavior:'smooth',block:'center'}); }
+
+function toggleFilter(type,btn){
+  if(filters.has(type)){filters.delete(type);btn.classList.remove('active');}
+  else{filters.add(type);btn.classList.add('active');}
+  applyFilters();
+}
+
+function applyFilters(){
+  document.querySelectorAll('.annot-item').forEach(el=>{
+    el.style.display=[...filters].some(f=>el.classList.contains(f))?'block':'none';
+  });
+}
+
+function showError(msg){
+  const el=document.getElementById('inputError');
+  el.textContent=msg; el.style.display=msg?'block':'none';
+}
+
+function addToCanvas(){ alert('→ Nodo testo aggiunto al canvas'); }
+
+function resetAll(){
+  clearInterval(annotTimer);
+  document.getElementById('analysisScreen').classList.remove('active');
+  document.getElementById('inputScreen').style.display='flex';
+  document.getElementById('annotList').innerHTML='<div class="annot-empty" id="annotEmpty">// le annotazioni appariranno durante la lettura</div>';
+  document.getElementById('textInput').value='';
+  document.getElementById('aiReading').style.display='none';
+  document.getElementById('sommario').style.display='none';
+  const btn=document.getElementById('analyzeBtn');
+  btn.disabled=false; btn.textContent='analizza →';
+}
+</script>
+</body>
+</html>
