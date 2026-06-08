@@ -1218,5 +1218,333 @@ window.addEventListener("load", () => {
 }
 </style>
 \n
+
+<style id="ML_FINAL_WINDOW_FIX">
+/* finestre laterali sempre dentro viewport */
+.win.side-left.open,
+.win.side-right.open{
+  position:fixed!important;
+  top:42px!important;
+  height:calc(100vh - 42px)!important;
+  bottom:0!important;
+  transform:none!important;
+  border-radius:0!important;
+  max-height:none!important;
+  overflow:hidden!important;
+  resize:none!important;
+  display:flex!important;
+  flex-direction:column!important;
+  z-index:50!important;
+}
+
+.win.side-left.open{
+  left:0!important;
+  right:auto!important;
+  width:min(390px, 42vw)!important;
+}
+
+.win.side-right.open{
+  right:0!important;
+  left:auto!important;
+  width:min(430px, 42vw)!important;
+}
+
+/* corpo finestra scrollabile, non esce mai */
+.win .wh{
+  flex:0 0 38px!important;
+}
+
+.win .wb{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  overflow:auto!important;
+}
+
+/* input/chat/output sempre usabili */
+#chatWin textarea,
+#inputWin textarea{
+  max-width:100%!important;
+  box-sizing:border-box!important;
+}
+
+#chatInput{
+  min-height:72px!important;
+}
+
+/* i pannelli non coprono la toolbar */
+.toolbar{
+  position:fixed!important;
+  top:0!important;
+  left:0!important;
+  right:0!important;
+  height:42px!important;
+  z-index:100!important;
+}
+
+/* canvas sotto toolbar */
+.stage{
+  padding-top:42px!important;
+  box-sizing:border-box!important;
+}
+
+/* azioni nodo sempre visibili e centrate sotto il nodo */
+.actions{
+  position:absolute!important;
+  transform:translateX(-50%)!important;
+  z-index:80!important;
+}
+
+.actions.show{
+  display:flex!important;
+}
+
+/* impedisce finestre aperte di partire fuori schermo */
+.win:not(.open){
+  display:none!important;
+}
+</style>
+
+<script id="ML_FINAL_WINDOW_FIX_JS">
+window.addEventListener("load", () => {
+  function assignLayouts(){
+    ["inputWin","chatWin","editorWin"].forEach(id=>{
+      const w=document.getElementById(id);
+      if(w){
+        w.classList.add("side-left");
+        w.classList.remove("side-right","center-modal");
+      }
+    });
+
+    ["contentWin","outputWin"].forEach(id=>{
+      const w=document.getElementById(id);
+      if(w){
+        w.classList.add("side-right");
+        w.classList.remove("side-left","center-modal");
+      }
+    });
+  }
+
+  assignLayouts();
+
+  // all'avvio pubblico: nessuna finestra aperta
+  ["inputWin","chatWin","contentWin","outputWin","editorWin"].forEach(id=>{
+    document.getElementById(id)?.classList.remove("open");
+  });
+
+  const oldOpenWin = window.openWin;
+
+  window.openWin = function(id,x=null,y=null){
+    assignLayouts();
+
+    const w=document.getElementById(id);
+    if(!w) return;
+
+    w.classList.add("open");
+
+    if(w.classList.contains("side-left") || w.classList.contains("side-right")){
+      w.style.top="";
+      w.style.left="";
+      w.style.right="";
+      w.style.height="";
+      w.style.transform="";
+      return;
+    }
+
+    if(typeof oldOpenWin === "function"){
+      oldOpenWin(id,x,y);
+    }
+  };
+
+  // chiusura sicura
+  document.querySelectorAll(".wclose").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      const id=btn.dataset.close;
+      if(id) document.getElementById(id)?.classList.remove("open");
+    });
+  });
+
+  // riposiziona i pulsanti del nodo in modo corretto
+  if(typeof window.positionActions === "function"){
+    const oldPosition = window.positionActions;
+    window.positionActions = function(){
+      if(!window.selected) return oldPosition();
+
+      const actions=document.getElementById("nodeActions");
+      const layer=document.getElementById("layer");
+      if(!actions || !layer) return oldPosition();
+
+      if(actions.parentElement!==layer) layer.appendChild(actions);
+
+      const x=parseFloat(selected.style.left || 0) + selected.offsetWidth/2;
+      const y=parseFloat(selected.style.top || 0) + selected.offsetHeight + 10;
+
+      actions.style.left=x+"px";
+      actions.style.top=y+"px";
+    };
+  }
+
+  if(typeof apply === "function") apply();
+});
+</script>
+
+
+<style id="ML_CORE_REPAIR">
+.node{position:absolute!important;overflow:hidden!important}
+.node .ml-loader-26{position:absolute;inset:0;z-index:0;opacity:.28;pointer-events:none;overflow:hidden}
+.node .ml-loader-26 iframe{width:100%;height:100%;border:0;transform:scale(1.35);transform-origin:center;pointer-events:none}
+.node .ntype,.node .ntitle{position:relative;z-index:2}
+.actions{transform:translateX(-50%)!important;z-index:90!important}
+.rich-content{font-size:13px;line-height:1.65;white-space:normal}
+.rich-content h1{font-size:19px;margin:4px 0 16px;font-weight:700}
+.rich-content h2{font-size:15px;margin:24px 0 10px;font-weight:700}
+.rich-content h3{font-size:13px;margin:16px 0 8px;font-weight:700}
+.rich-content p{margin:0 0 12px}
+.rich-content ul{margin:6px 0 16px 18px}
+.rich-content li{margin:5px 0}
+.rich-content hr{border:0;border-top:1px solid var(--brd);margin:20px 0}
+</style>
+
+<script id="ML_CORE_REPAIR_JS">
+window.addEventListener("load",()=>{
+  function esc(s){return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")}
+  function norm(s){return String(s||"")
+    .replace(/<\s*h1[^>]*>/gi,"\n# ").replace(/<\s*\/h1\s*>/gi,"\n")
+    .replace(/<\s*h2[^>]*>/gi,"\n## ").replace(/<\s*\/h2\s*>/gi,"\n")
+    .replace(/<\s*h3[^>]*>/gi,"\n### ").replace(/<\s*\/h3\s*>/gi,"\n")
+    .replace(/<\s*hr[^>]*>/gi,"\n---\n")
+    .replace(/<[^>]+>/g,"").trim()}
+  function md(s){
+    let t=esc(norm(s)).replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>");
+    let out="",list=false,para=[];
+    const flush=()=>{if(para.length){out+="<p>"+para.join("<br>")+"</p>";para=[]}};
+    t.split("\n").forEach(r=>{
+      const l=r.trim();
+      if(!l){flush();if(list){out+="</ul>";list=false}return}
+      if(l==="---"){flush();if(list){out+="</ul>";list=false}out+="<hr>";return}
+      if(l.startsWith("### ")){flush();if(list){out+="</ul>";list=false}out+="<h3>"+l.slice(4)+"</h3>";return}
+      if(l.startsWith("## ")){flush();if(list){out+="</ul>";list=false}out+="<h2>"+l.slice(3)+"</h2>";return}
+      if(l.startsWith("# ")){flush();if(list){out+="</ul>";list=false}out+="<h1>"+l.slice(2)+"</h1>";return}
+      if(l.startsWith("- ")){flush();if(!list){out+="<ul>";list=true}out+="<li>"+l.slice(2)+"</li>";return}
+      if(list){out+="</ul>";list=false}
+      para.push(l);
+    });
+    flush();if(list)out+="</ul>";
+    return `<div class="rich-content">${out}</div>`;
+  }
+
+  window.showContent=function(n){
+    openWin("contentWin");
+    contentBody.innerHTML=`<div class="meta">${esc(n.dataset.type||"")}</div>${md(n.dataset.content||"Nessun contenuto.")}`;
+  };
+
+  function renderOutput(){
+    openWin("outputWin");
+    const all=typeof nodes==="function"?nodes():[];
+    const analyses=all.filter(n=>n.classList.contains("analysis")&&!n.classList.contains("synthesis"));
+    const syntheses=all.filter(n=>n.classList.contains("synthesis"));
+    outputBody.innerHTML=`
+      <div class="meta">Output Media Lens</div>
+      <h3>Sintesi e analisi del progetto</h3>
+      <div class="meta">Sintesi</div>
+      ${syntheses.length?syntheses.map(n=>md(n.dataset.content||"")).join(""):"<p>Nessuna sintesi generata.</p>"}
+      <div class="meta">Analisi</div>
+      ${analyses.length?analyses.map(n=>md(n.dataset.content||"")).join(""):"<p>Nessuna analisi generata.</p>"}
+    `;
+  }
+  document.getElementById("outputBtn")?.addEventListener("click",renderOutput);
+  document.getElementById("floatOutputBtn")?.addEventListener("click",renderOutput);
+
+  window.positionActions=function(){
+    if(typeof selected==="undefined"||!selected)return;
+    const a=document.getElementById("nodeActions"),layer=document.getElementById("layer");
+    if(!a||!layer)return;
+    if(a.parentElement!==layer)layer.appendChild(a);
+    a.style.left=(parseFloat(selected.style.left||0)+selected.offsetWidth/2)+"px";
+    a.style.top=(parseFloat(selected.style.top||0)+selected.offsetHeight+10)+"px";
+  };
+
+  function refreshLoaders(){
+    document.querySelectorAll(".node").forEach(n=>{
+      const title=n.querySelector(".ntitle")?.textContent?.toLowerCase()||"";
+      const loading=title.includes("in corso")||n.classList.contains("loading");
+      if(loading&&!n.querySelector(".ml-loader-26")){
+        const d=document.createElement("div");
+        d.className="ml-loader-26";
+        d.innerHTML='<iframe src="/static/metodo_2_6_original.html"></iframe>';
+        n.prepend(d);
+      }
+      if(!loading)n.querySelector(".ml-loader-26")?.remove();
+    });
+    if(typeof drawEdges==="function")drawEdges();
+    if(typeof positionActions==="function")positionActions();
+  }
+  setInterval(refreshLoaders,400);
+
+  async function sendChat(){
+    const input=document.getElementById("chatInput");
+    const box=document.getElementById("chatMessages");
+    if(!input||!box||!input.value.trim())return;
+    const message=input.value.trim();
+    input.value="";
+    box.innerHTML+=`<div><strong>Tu:</strong> ${esc(message)}</div>`;
+    try{
+      const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message,api_key:localStorage.getItem("anthropic_key") || localStorage.getItem("anthropicKey") || localStorage.getItem("ml_anthropic_key") || document.getElementById("anthropicKey")?.value || document.getElementById("anthropicApiKey")?.value || "",anthropic_key:localStorage.getItem("anthropic_key") || localStorage.getItem("anthropicKey") || localStorage.getItem("ml_anthropic_key") || document.getElementById("anthropicKey")?.value || document.getElementById("anthropicApiKey")?.value || ""})});
+      const j=await r.json();
+      box.innerHTML+=`<div><strong>Media Lens:</strong> ${esc(j.result||j.reply||j.error||"Nessuna risposta.")}</div>`;
+    }catch(e){
+      box.innerHTML+=`<div><strong>Errore chat:</strong> ${esc(e.message)}</div>`;
+    }
+    box.scrollTop=box.scrollHeight;
+  }
+  document.getElementById("chatSend")?.addEventListener("click",sendChat);
+  document.getElementById("chatInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat()}});
+});
+</script>
+
+
+<script id="ML_CHAT_MARKDOWN_FIX">
+window.addEventListener("load",()=>{
+  function esc(s){return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")}
+  function chatMD(s){
+    let t=esc(String(s||""));
+    t=t.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>");
+    t=t.replace(/^### (.*)$/gm,"<h4>$1</h4>");
+    t=t.replace(/^## (.*)$/gm,"<h3>$1</h3>");
+    t=t.replace(/^# (.*)$/gm,"<h2>$1</h2>");
+    t=t.replace(/^- (.*)$/gm,"<div class='chat-li'>• $1</div>");
+    t=t.replace(/^---$/gm,"<hr>");
+    t=t.replace(/\n/g,"<br>");
+    return t;
+  }
+
+  function fixChat(){
+    const box=document.getElementById("chatMessages");
+    if(!box)return;
+
+    [...box.children].forEach(el=>{
+      if(el.dataset.mdFixed==="1")return;
+
+      const txt=el.textContent||"";
+      if(txt.startsWith("Media Lens:")){
+        const body=txt.replace(/^Media Lens:\s*/,"");
+        el.innerHTML="<strong>Media Lens:</strong><br>"+chatMD(body);
+        el.dataset.mdFixed="1";
+      }
+    });
+  }
+
+  setInterval(fixChat,300);
+});
+</script>
+
+<style id="ML_CHAT_MARKDOWN_FIX_CSS">
+#chatMessages h2{font-size:16px;margin:12px 0 8px}
+#chatMessages h3{font-size:14px;margin:12px 0 8px}
+#chatMessages h4{font-size:13px;margin:10px 0 6px}
+#chatMessages .chat-li{margin:4px 0 4px 10px}
+#chatMessages hr{border:0;border-top:1px solid var(--brd);margin:10px 0}
+#chatMessages div{line-height:1.45}
+</style>
+
 </body>
 </html>
