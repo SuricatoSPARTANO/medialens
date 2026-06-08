@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Metodo 2-6 — Animazione Rettangolo v10</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0a}
+body{display:flex;align-items:center;justify-content:center;padding:14px}
+.stage{width:min(1380px,97vw);height:min(900px,96vh);background:#fff;border:1px solid #111;border-radius:14px;overflow:hidden;position:relative;box-shadow:0 20px 70px rgba(0,0,0,.45)}
+canvas{display:block;width:100%;height:100%}
+</style>
+</head>
+<body>
+<div class="stage"><canvas id="c"></canvas></div>
+<script>
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+let W=0,H=0,DPR=1,perf=0;
+const TAU=Math.PI*2;
+const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const lerpAngle=(a,b,t)=>{
+  let d=((b-a+Math.PI)%(TAU))-Math.PI;
+  if(d<-Math.PI)d+=TAU;
+  return a+d*t;
+};
+const easeInOut=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const easeOut=t=>1-Math.pow(1-t,3);
+const easeIn=t=>t*t;
+
+function resize(){
+  DPR=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+  const r=canvas.getBoundingClientRect();
+  W=r.width;H=r.height;
+  canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize',resize);resize();
+
+function clear(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);}
+function orient(sides){return sides%2===0?Math.PI/sides:0}
+function drawCircle(x,y,r,fill='#fff',stroke='#111',lw=2){
+  ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fillStyle=fill;ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.fill();ctx.stroke();
+}
+function drawPulse(cx,cy,t,strength=1){
+  ctx.save();ctx.globalAlpha=.10*strength;ctx.strokeStyle='#111';ctx.lineWidth=.7;
+  for(let i=0;i<8;i++){const rr=36+i*28+Math.sin(t*.018+i)*5;ctx.beginPath();ctx.arc(cx,cy,rr,0,TAU);ctx.stroke();}
+  ctx.restore();
+}
+function regularVertices(sides,r,rot){
+  const out=[];
+  for(let i=0;i<sides;i++){
+    const a=rot-Math.PI/2+i*TAU/sides;
+    out.push({x:Math.cos(a)*r,y:Math.sin(a)*r});
+  }
+  return out;
+}
+function drawPolygon(x,y,sides,r,rot,opt={}){
+  const jitter=opt.jitter||0;
+  const verts=regularVertices(sides,r,rot);
+  ctx.save();ctx.beginPath();
+  verts.forEach((p,i)=>{
+    const k=1+(jitter/r)*Math.sin(perf*.018+i*1.7);
+    const px=x+p.x*k, py=y+p.y*k;
+    i?ctx.lineTo(px,py):ctx.moveTo(px,py);
+  });
+  ctx.closePath();ctx.fillStyle=opt.fill||'#fff';ctx.strokeStyle=opt.stroke||'#111';ctx.lineWidth=opt.lineWidth||2.45;ctx.lineJoin='miter';ctx.miterLimit=6;ctx.fill();ctx.stroke();ctx.restore();
+}
+function polygonPointAt(sides,r,rot,u){
+  const verts=regularVertices(sides,r,rot);
+  const scaled=(u%1)*sides;
+  const i=Math.floor(scaled);
+  const f=scaled-i;
+  const a=verts[i], b=verts[(i+1)%sides];
+  return {x:lerp(a.x,b.x,f),y:lerp(a.y,b.y,f)};
+}
+function drawMorphPolygon(x,y,fromSides,toSides,r,rotFrom,rotTo,m){
+  const n=96;
+  const mm=easeInOut(m);
+  ctx.save();ctx.beginPath();
+  for(let i=0;i<n;i++){
+    const u=i/n;
+    const a=polygonPointAt(fromSides,r,rotFrom,u);
+    const b=polygonPointAt(toSides,r,rotTo,u);
+    const px=x+lerp(a.x,b.x,mm), py=y+lerp(a.y,b.y,mm);
+    i?ctx.lineTo(px,py):ctx.moveTo(px,py);
+  }
+  ctx.closePath();ctx.fillStyle='#fff';ctx.strokeStyle='#111';ctx.lineWidth=2.45;ctx.lineJoin='miter';ctx.miterLimit=6;ctx.fill();ctx.stroke();ctx.restore();
+}
+
+function makePath(seed){
+  const cx=W/2,cy=H/2;
+  const margin=Math.min(W,H)*.15;
+  const ampX=Math.min(W*.40,(W/2)-margin);
+  const ampY=Math.min(H*.36,(H/2)-margin);
+  const loops=2.55+seed*.10;
+  const phase=seed*1.73;
+  return function(u){
+    const s=Math.sin(Math.PI*u);
+    const a=TAU*loops*u+phase;
+    const curl1=Math.sin(TAU*u*3.2+phase)*.30;
+    const curl2=Math.cos(TAU*u*4.6+phase*.7)*.22;
+    return {
+      x:cx+s*(Math.cos(a)*ampX + Math.cos(a*2.15+curl1)*ampX*.30 + Math.sin(TAU*u*.75+phase)*W*.055),
+      y:cy+s*(Math.sin(a)*ampY + Math.sin(a*1.72+curl2)*ampY*.36 + Math.cos(TAU*u*.82+phase)*H*.05)
+    };
+  }
+}
+function drawPathSegment(path,u0,u1,alpha=.95){
+  if(u1<=u0)return;
+  ctx.save();ctx.strokeStyle='#111';ctx.lineWidth=1.45;ctx.lineCap='round';ctx.lineJoin='round';ctx.globalAlpha=alpha;ctx.beginPath();
+  const steps=Math.max(8,Math.floor((u1-u0)*300));
+  for(let i=0;i<=steps;i++){
+    const u=lerp(u0,u1,i/steps); const p=path(u);
+    i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);
+  }
+  ctx.stroke();ctx.restore();
+}
+
+const introDur=3700;
+const traceDur=5400;
+const followDelay=.08;
+const endHold=10;
+const cycleDur=traceDur*(1+followDelay)+endHold;
+const gridDur=3000;
+const fadeDur=1750;
+const pauseEnd=360;
+let start=performance.now();
+
+function intro(t){
+  const cx=W/2,cy=H/2;
+  const r=Math.min(W,H)*.044;
+  const finalR=Math.min(W,H)*.122;
+  const approach=clamp(t/1450);
+  const connect=clamp((t-850)/900);
+  const tri=clamp((t-2050)/1250);
+  const kTri=easeInOut(tri);
+  const leftX=lerp(-r*2,cx-r*2.8,easeOut(approach));
+  const rightX=lerp(W+r*2,cx+r*2.8,easeOut(approach));
+  const y=cy+Math.sin(t*.014)*3;
+  const circlesAlpha=1-clamp((t-2350)/650);
+  if(circlesAlpha>0.01){
+    drawPulse(cx,cy,t,connect*circlesAlpha);
+    ctx.save();ctx.globalAlpha=connect*circlesAlpha;ctx.strokeStyle='#111';ctx.lineWidth=1.55;ctx.beginPath();ctx.moveTo(leftX+r,y);ctx.lineTo(rightX-r,y);ctx.stroke();ctx.restore();
+    const trem=connect*Math.sin(t*.055)*2.4;
+    ctx.save();ctx.globalAlpha=circlesAlpha;
+    drawCircle(leftX+trem,y,r,'#000','#111',2);
+    drawCircle(rightX-trem,y,r,'#fff','#111',2);
+    ctx.restore();
+  }
+  if(tri>0){
+    const size=lerp(r*.95,finalR,kTri);
+    const softScale=1+.025*Math.sin(t*.025)*(1-kTri);
+    ctx.save();ctx.globalAlpha=clamp(tri/.34);
+    drawPolygon(cx,cy,3,size*softScale,orient(3)+Math.sin(t*.03)*.045*(1-kTri),{jitter:1.4*(1-kTri),lineWidth:2.45});
+    ctx.restore();
+  }
+}
+
+function cycle(local,sides,nextSides,seed){
+  const cx=W/2,cy=H/2;
+  const r=Math.min(W,H)*.122;
+  const dotR=Math.min(W,H)*.017;
+  const path=makePath(seed);
+  const rawTrace=clamp(local/traceDur);
+  const uTrace=easeInOut(rawTrace);
+  const rawFollower=(local/traceDur)-followDelay;
+  const uFollower=easeOut(clamp(rawFollower));
+  const followerDone = local>=traceDur*(1+followDelay);
+
+  if(!followerDone){
+    const activeTrace = local<traceDur ? uTrace : 1;
+    const activeFollower = uFollower;
+
+    // La traccia esiste solo davanti alla figura: quando la figura ci passa sopra, la cancella.
+    drawPathSegment(path,activeFollower,activeTrace,.92);
+    const dot=path(activeTrace);
+    drawCircle(dot.x,dot.y,dotR,'#000','#000',0);
+
+    // Durante il ritardo iniziale la forma NON cambia inclinazione e NON tentenna:
+    // rimane esattamente al centro, nella stessa posizione da cui partirà.
+    if(rawFollower<=0){
+      drawPolygon(cx,cy,sides,r,orient(sides),{jitter:0,lineWidth:2.45});
+      return;
+    }
+
+    const p=path(activeFollower);
+    const look=path(clamp(activeFollower+.012));
+    const pathAngle=Math.atan2(look.y-p.y,look.x-p.x)+Math.PI/2;
+
+    // Correzione v7:
+    // appena la forma parte dal centro mantiene ESATTAMENTE l'inclinazione di arrivo.
+    // Solo dopo essersi già allontanata un poco inizia ad accompagnare la direzione della traiettoria.
+    // Questo elimina lo scatto/frame inclinato prima dell'inseguimento del tracciatore.
+    const launchBlend=easeInOut(clamp((activeFollower-.025)/.075));
+    const travelRot=lerpAngle(orient(sides),pathAngle,launchBlend);
+
+    // Rotazione e morph solo nell'ultimo tratto, poco prima del rientro al centro.
+    const pre=clamp((activeFollower-.84)/.16);
+    const morph=easeInOut(pre);
+    const spin=easeOut(pre)*TAU*2;
+    const rotFrom=pre>0 ? lerpAngle(travelRot,orient(sides),pre*.40)+spin*(1-morph*.18) : travelRot;
+    const rotTo=orient(nextSides)+spin*(1-morph);
+    const vib=(1-morph)*.45*Math.sin(perf*.08);
+
+    if(morph>0.001){
+      drawMorphPolygon(p.x+vib,p.y-vib,sides,nextSides,r,rotFrom,rotTo,morph);
+    }else{
+      drawPolygon(p.x,p.y,sides,r,travelRot,{jitter:0,lineWidth:2.45});
+    }
+  }else{
+    // Atterraggio pulito: centro esatto, rotazione zero progettuale, nessun frame inclinato.
+    drawPolygon(cx,cy,nextSides,r,orient(nextSides),{jitter:0,lineWidth:2.45});
+  }
+}
+
+function drawHexGrid(progress,fade){
+  const cx=W/2,cy=H/2;
+  const R=Math.min(W,H)*.057;
+  // Griglia esagonale flat-top reale: i centri distano 1.5R in orizzontale
+  // e sqrt(3)R in verticale, con offset di mezza riga sulle colonne alternate.
+  const dx=1.5*R;
+  const dy=Math.sqrt(3)*R;
+  const cols=Math.ceil(W/dx)+8;
+  const rows=Math.ceil(H/dy)+8;
+  const maxDist=Math.hypot(W,H)/2+R*5;
+  ctx.save();ctx.strokeStyle='#111';ctx.lineWidth=1.05;ctx.lineJoin='miter';ctx.miterLimit=6;
+  for(let col=-cols;col<=cols;col++){
+    for(let row=-rows;row<=rows;row++){
+      const x=cx+col*dx;
+      const y=cy+(row+(col&1)*.5)*dy;
+      const d=Math.hypot(x-cx,y-cy);
+      const order=d/maxDist;
+      const appear=clamp((progress-order)*4.4);
+      const disappear=clamp((fade-order)*3.4);
+      const alpha=appear*(1-disappear);
+      if(alpha<=0)continue;
+      ctx.save();ctx.globalAlpha=.86*alpha;ctx.beginPath();
+      for(let i=0;i<6;i++){
+        const a=orient(6)-Math.PI/2+i*TAU/6;
+        const px=x+Math.cos(a)*R, py=y+Math.sin(a)*R;
+        i?ctx.lineTo(px,py):ctx.moveTo(px,py);
+      }
+      ctx.closePath();ctx.stroke();ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+function gridPhase(local){
+  const cx=W/2,cy=H/2;
+  const r=Math.min(W,H)*.122;
+  const expand=clamp(local/gridDur);
+  const fade=clamp((local-gridDur+900)/fadeDur);
+
+  // L'esagono non resta immobile: appena arriva al centro ruota rapidamente
+  // sul proprio asse, resta centrato nello spazio e si dissolve mentre nasce la rete.
+  // La rete sottostante rimane invariata.
+  const hexDissolveDur=640;
+  const h=clamp(local/hexDissolveDur);
+  if(h<1){
+    ctx.save();
+    ctx.globalAlpha=1-easeInOut(h);
+    const spin=easeOut(h)*TAU*2.15;
+    drawPolygon(cx,cy,6,r,orient(6)+spin,{lineWidth:2.45});
+    ctx.restore();
+  }
+
+  drawHexGrid(easeOut(expand),easeInOut(fade));
+}
+
+function render(now){
+  perf=now; clear();
+  const total=introDur+cycleDur*3+gridDur+fadeDur+pauseEnd;
+  let t=(now-start)%total;
+  if(t<introDur){intro(t);}
+  else{
+    t-=introDur;
+    if(t<cycleDur)cycle(t,3,4,1.05);
+    else if(t<cycleDur*2)cycle(t-cycleDur,4,5,2.25);
+    else if(t<cycleDur*3)cycle(t-cycleDur*2,5,6,3.45);
+    else gridPhase(t-cycleDur*3);
+  }
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+.DS_Store
+templates/.DS_Store
+templates/index_backup*
+templates/index_before*
+templates/index_v4_old_ui_backup.html
+app_v2_backup.py
+__pycache__/
+*.pyc

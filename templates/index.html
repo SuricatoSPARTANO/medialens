@@ -1,650 +1,1222 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Media Lens — Analisi critica dei contenuti</title>
-
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Media Lens v4</title>
 <style>
-:root {
-  --bg: #0a0a0f;
-  --surface: #13131a;
-  --surface2: #1a1a24;
-  --border: rgba(255,255,255,0.08);
-  --border2: rgba(255,255,255,0.14);
-  --text: #f0f0f5;
-  --muted: #8888a0;
-  --hint: #4a4a60;
-  --accent: #e94560;
-  --accent2: #7c6af7;
-  --warn: #f59e0b;
-  --ok: #22c55e;
-  --info: #38bdf8;
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  --mono: 'SF Mono', 'Monaco', 'Consolas', monospace;
+:root{
+  --bg:#D8D5CE;--ui:#C8C4BC;--panel:#EAE7E0;--brd:#B0ACA4;
+  --txt:#1A1814;--mut:#625D54;--acc:#5C52C4;--accbg:#DDD9FB;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 15px; }
-body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
-
-/* Layout */
-.shell { max-width: 900px; margin: 0 auto; padding: 0 20px 80px; }
-
-/* Header */
-header { padding: 28px 0 24px; display: flex; align-items: center; gap: 14px; border-bottom: 0.5px solid var(--border); margin-bottom: 28px; }
-.logo { width: 40px; height: 40px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.logo svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.brand h1 { font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
-.brand p { font-size: 13px; color: var(--muted); margin-top: 1px; }
-.version { margin-left: auto; font-size: 11px; color: var(--hint); background: var(--surface2); padding: 3px 9px; border-radius: 8px; border: 0.5px solid var(--border); font-family: var(--mono); }
-
-/* API Keys */
-.keys-panel { background: var(--surface); border: 0.5px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 24px; }
-.keys-title { font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 14px; }
-.keys-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.key-field label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 5px; }
-.key-field input { width: 100%; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: 8px; padding: 9px 12px; color: var(--text); font-family: var(--mono); font-size: 12px; outline: none; transition: border-color .15s; }
-.key-field input:focus { border-color: var(--accent); }
-.key-field input::placeholder { color: var(--hint); }
-.keys-note { font-size: 11px; color: var(--hint); margin-top: 10px; }
-
-/* Mode tabs */
-.mode-tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
-.mode-tab { padding: 8px 16px; border-radius: 20px; border: 0.5px solid var(--border2); background: var(--surface); color: var(--muted); font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all .15s; font-family: var(--font); }
-.mode-tab:hover { border-color: rgba(255,255,255,.25); color: var(--text); }
-.mode-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(233,69,96,.08); }
-.mode-tab .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-
-/* Input area */
-.input-panel { background: var(--surface); border: 0.5px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 20px; }
-.input-inner { padding: 16px 18px; }
-.input-panel textarea { width: 100%; background: transparent; border: none; color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; resize: none; outline: none; min-height: 120px; }
-.input-panel textarea::placeholder { color: var(--hint); }
-.input-panel input[type=url] { width: 100%; background: transparent; border: none; color: var(--text); font-family: var(--mono); font-size: 13px; outline: none; padding: 4px 0; }
-.input-panel input[type=url]::placeholder { color: var(--hint); }
-.input-footer { padding: 10px 18px; border-top: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-.char-count { font-size: 12px; color: var(--hint); font-family: var(--mono); }
-.btn-analyze { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; font-family: var(--font); transition: opacity .15s; }
-.btn-analyze:hover { opacity: .85; }
-.btn-analyze:disabled { opacity: .4; cursor: not-allowed; }
-.spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Live mode */
-.live-panel { background: var(--surface); border: 0.5px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; display: none; }
-.live-panel.show { display: block; }
-.live-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.live-indicator { width: 10px; height: 10px; border-radius: 50%; background: var(--hint); }
-.live-indicator.on { background: var(--ok); animation: pulse 1.2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-.live-status { font-size: 14px; font-weight: 500; }
-.live-transcript { background: var(--surface2); border-radius: 8px; padding: 12px 14px; min-height: 80px; font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; font-style: italic; }
-.btn-live { padding: 10px 20px; border-radius: 8px; border: 0.5px solid var(--border2); background: var(--surface2); color: var(--text); font-size: 13px; cursor: pointer; font-family: var(--font); transition: all .15s; }
-.btn-live:hover { border-color: var(--ok); color: var(--ok); }
-.btn-live.stop { border-color: var(--accent); color: var(--accent); }
-.live-chunks { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
-.live-chunk { padding: 10px 12px; border-radius: 8px; border-left: 3px solid transparent; background: var(--surface2); font-size: 12px; }
-.live-chunk.low { border-left-color: var(--ok); }
-.live-chunk.medium { border-left-color: var(--warn); }
-.live-chunk.high { border-left-color: var(--accent); }
-.chunk-summary { color: var(--text); margin-bottom: 4px; font-weight: 500; }
-.chunk-flags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.chunk-flag { font-size: 11px; padding: 2px 7px; border-radius: 6px; }
-.flag-claim { background: rgba(233,69,96,.15); color: #f09595; }
-.flag-framing { background: rgba(245,158,11,.15); color: #fcd34d; }
-.flag-rhetoric { background: rgba(56,189,248,.15); color: #7dd3fc; }
-.flag-bias { background: rgba(124,106,247,.15); color: #c4b5fd; }
-
-/* Results */
-.results { display: none; }
-.results.show { display: block; }
-.scores-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
-.score-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 12px; padding: 14px 16px; text-align: center; }
-.sc-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
-.sc-value { font-size: 26px; font-weight: 600; letter-spacing: -.02em; }
-.danger { color: var(--accent); }
-.warn { color: var(--warn); }
-.safe { color: var(--ok); }
-
-.analysis-section { background: var(--surface); border: 0.5px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 10px; }
-.as-header { padding: 13px 18px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background .15s; }
-.as-header:hover { background: var(--surface2); }
-.as-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-.ic-claims { background: rgba(233,69,96,.12); }
-.ic-framing { background: rgba(245,158,11,.12); }
-.ic-bias { background: rgba(124,106,247,.12); }
-.ic-rhetoric { background: rgba(56,189,248,.12); }
-.ic-omissions { background: rgba(34,197,94,.12); }
-.as-title { font-size: 14px; font-weight: 500; flex: 1; }
-.as-badge { font-size: 11px; padding: 3px 9px; border-radius: 8px; font-weight: 500; }
-.bd-danger { background: rgba(233,69,96,.15); color: #f09595; }
-.bd-warn { background: rgba(245,158,11,.15); color: #fcd34d; }
-.bd-ok { background: rgba(34,197,94,.15); color: #86efac; }
-.bd-neutral { background: var(--surface2); color: var(--muted); }
-.as-chevron { font-size: 18px; color: var(--hint); transition: transform .2s; }
-.as-chevron.open { transform: rotate(180deg); }
-.as-body { display: none; padding: 0 18px 16px; border-top: 0.5px solid var(--border); }
-.as-body.open { display: block; }
-.as-text { font-size: 13px; color: var(--muted); line-height: 1.7; margin-top: 14px; }
-.claim-item { margin-top: 10px; padding: 11px 14px; background: var(--surface2); border-radius: 10px; border-left: 3px solid transparent; }
-.claim-item.red { border-left-color: var(--accent); }
-.claim-item.yellow { border-left-color: var(--warn); }
-.claim-item.green { border-left-color: var(--ok); }
-.claim-text { font-size: 13px; color: var(--text); font-weight: 500; margin-bottom: 6px; line-height: 1.5; }
-.claim-meta { display: flex; align-items: flex-start; gap: 8px; }
-.verdict-tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 500; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
-.vt-false { background: rgba(233,69,96,.2); color: #f09595; }
-.vt-partial { background: rgba(245,158,11,.2); color: #fcd34d; }
-.vt-true { background: rgba(34,197,94,.2); color: #86efac; }
-.vt-unverifiable { background: var(--surface); color: var(--muted); border: 0.5px solid var(--border2); }
-.claim-expl { font-size: 12px; color: var(--muted); line-height: 1.5; }
-.technique-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.tech-pill { font-size: 12px; padding: 4px 11px; border-radius: 10px; background: var(--surface2); color: var(--muted); border: 0.5px solid var(--border2); }
-.omission-item { margin-top: 8px; display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--muted); line-height: 1.5; }
-.omission-item::before { content: "→"; color: var(--ok); flex-shrink: 0; font-weight: 500; }
-
-.verdict-card { background: var(--surface); border: 0.5px solid var(--border2); border-radius: 14px; padding: 20px; margin-bottom: 10px; }
-.vc-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
-.vc-text { font-size: 14px; color: var(--text); line-height: 1.7; }
-.vc-advice { margin-top: 14px; padding-top: 14px; border-top: 0.5px solid var(--border); font-size: 13px; color: var(--muted); line-height: 1.6; }
-.vc-advice strong { color: var(--info); }
-
-.transcription-box { background: var(--surface2); border-radius: 10px; padding: 12px 14px; margin-top: 12px; font-size: 12px; color: var(--hint); line-height: 1.6; font-style: italic; border: 0.5px solid var(--border); }
-
-/* Error */
-.error-box { background: rgba(233,69,96,.1); border: 0.5px solid rgba(233,69,96,.3); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #f09595; margin-bottom: 16px; display: none; }
-.error-box.show { display: block; }
-
-/* Responsive */
-@media (max-width: 600px) {
-  .scores-grid { grid-template-columns: repeat(2,1fr); }
-  .keys-grid { grid-template-columns: 1fr; }
-  .mode-tabs { gap: 4px; }
-  .mode-tab { padding: 7px 12px; font-size: 12px; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;overflow:auto;background:var(--bg);font-family:var(--sans);color:var(--txt)}
+#app{min-height:100vh;display:flex;flex-direction:column}
+.toolbar{
+  height:42px;background:var(--ui);border-bottom:1px solid var(--brd);
+  display:flex;align-items:center;gap:6px;padding:0 10px;z-index:50;user-select:none
 }
+.logo{font-family:var(--mono);font-size:11px;font-weight:700;color:#C4622D;margin-right:10px}
+.tool{font-size:18px;
+  min-width:30px;height:30px;border-radius:5px;border:0;background:transparent;
+  color:var(--mut);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:12px;padding:0 8px
+}
+.tool:hover{background:var(--accbg);color:var(--acc)}
+.spacer{flex:1}
+.stage{flex:1;position:relative;overflow:hidden}
+#canvas{
+  position:absolute;inset:0;overflow:hidden;cursor:default;
+  background-image:radial-gradient(#B8B4AC 1px,transparent 1px);
+  background-size:24px 24px;
+}
+#layer{position:absolute;left:0;top:0;width:5000px;height:5000px;transform-origin:0 0}
+#edges{position:absolute;inset:0;overflow:visible;pointer-events:none}
+.node{
+  position:absolute;min-width:150px;max-width:220px;background:var(--panel);
+  border:1px solid var(--brd);border-radius:9px;padding:9px 11px;cursor:default;
+  user-select:none
+}
+.node.active{border-color:var(--acc);box-shadow:0 0 0 3px rgba(92,82,196,.13)}
+.node.analysis.loading{animation:pulse 1s infinite;border-color:var(--acc)}
+@keyframes pulse{50%{box-shadow:0 0 0 7px rgba(92,82,196,.08)}}
+.ntype{font-family:var(--mono);font-size:9px;color:var(--mut);margin-bottom:4px}
+.ntitle{font-size:12px;font-weight:600}
+.actions{
+  position:absolute;display:none;gap:5px;z-index:20
+}
+.actions.show{display:flex}
+.a-btn{
+  width:26px;height:26px;border-radius:5px;border:1px solid var(--brd);
+  background:var(--panel);cursor:pointer;color:var(--mut);
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px
+}
+.a-btn:hover{border-color:var(--acc);color:var(--acc)}
+#selectionBox{
+  position:absolute;display:none;border:1px solid var(--acc);
+  background:rgba(92,82,196,.10);pointer-events:none;z-index:15
+}
+.win{
+  position:absolute;left:120px;top:80px;width:360px;height:360px;
+  background:var(--ui);border:1px solid var(--brd);border-radius:10px;
+  z-index:40;display:none;flex-direction:column;overflow:hidden;
+  resize:both;min-width:260px;min-height:180px;box-shadow:0 12px 40px rgba(0,0,0,.12)
+}
+.win.open{display:flex}
+.wh{
+  height:38px;border-bottom:1px solid var(--brd);display:flex;align-items:center;
+  justify-content:space-between;padding:0 12px;font-family:var(--mono);font-size:11px;
+  color:var(--mut);cursor:move;user-select:none
+}
+.wclose{font-size:18px;cursor:pointer;color:var(--mut)}
+.wb{padding:14px;overflow:auto;flex:1}
+label{display:block;font-family:var(--mono);font-size:10px;color:var(--mut);margin:10px 0 5px}
+input,textarea,select{
+  width:100%;background:var(--bg);border:1px solid var(--brd);border-radius:6px;
+  padding:8px;font:inherit;font-size:12px;color:var(--txt);outline:none
+}
+textarea{min-height:92px;resize:vertical;line-height:1.45}
+.btn{
+  width:100%;height:32px;margin-top:12px;border:0;border-radius:6px;background:var(--acc);
+  color:white;font-family:var(--mono);font-size:11px;cursor:pointer
+}
+.meta{font-family:var(--mono);font-size:10px;color:var(--mut);line-height:1.5}
+.content{font-size:12px;line-height:1.55;white-space:pre-wrap}
+.progress{height:5px;background:var(--bg);border-radius:999px;overflow:hidden;margin:10px 0}
+.bar{height:100%;width:0%;background:var(--acc);transition:width .25s}
+
+#mlHome .createHero{
+  background:#fff;
+}
+#mlHome .createHero iframe{
+  position:absolute;
+  width:calc(100% + 80px)!important;
+  height:calc(100% + 80px)!important;
+  left:-40px!important;
+  top:-40px!important;
+  border:0!important;
+  transform:scale(1.08);
+  transform-origin:center;
+}
+
+
+#mlHome .createHero iframe{
+  pointer-events:none!important;
+}
+#mlHome .createOverlay{
+  pointer-events:none!important;
+}
+
+
+.floatingToolbar{
+  position:absolute;
+  left:50%;
+  bottom:22px;
+  transform:translateX(-50%);
+  height:42px;
+  padding:5px;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  background:rgba(200,196,188,.82);
+  border:1px solid var(--brd);
+  border-radius:13px;
+  backdrop-filter:blur(14px);
+  box-shadow:0 12px 38px rgba(0,0,0,.12);
+  z-index:80;
+}
+.floatTool{
+  height:32px;
+  min-width:32px;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  color:var(--mut);
+  font-family:var(--mono);
+  font-size:11px;
+  padding:0 10px;
+  cursor:pointer;
+}
+.floatTool:hover{
+  background:var(--accbg);
+  color:var(--acc);
+}
+.toolbar{
+  height:42px;
+  background:var(--ui);
+  border-bottom:1px solid var(--brd);
+  display:flex;
+  align-items:center;
+  padding:0 10px;
+  z-index:90;
+}
+.logo{
+  cursor:pointer;
+}
+
 </style>
 </head>
+
 <body>
-<div class="shell">
 
-<header>
-  <div class="logo">
-    <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/></svg>
-  </div>
-  <div class="brand">
-    <h1>Media Lens</h1>
-    <p>Analisi critica di contenuti in tempo reale</p>
-  </div>
-  <span class="version">v2.0</span>
-  <a href="/debate" style="margin-left:8px;padding:6px 14px;border:0.5px solid rgba(124,106,247,.4);border-radius:8px;background:rgba(124,106,247,.08);color:#7c6af7;font-size:12px;text-decoration:none;font-weight:500">⚔️ Arena Dibattito</a>
-  <div style="margin-left:8px;display:flex;gap:6px">
-    <a href="/testo" style="padding:5px 12px;border:0.5px solid #333;background:transparent;color:#888;font-size:11px;text-decoration:none;font-family:monospace">testo</a>
-    <a href="/video" style="padding:5px 12px;border:0.5px solid #333;background:transparent;color:#888;font-size:11px;text-decoration:none;font-family:monospace">video</a>
-    <a href="/voce" style="padding:5px 12px;border:0.5px solid #333;background:transparent;color:#888;font-size:11px;text-decoration:none;font-family:monospace">voce</a>
-    <a href="/debate" style="padding:5px 12px;border:0.5px solid rgba(124,106,247,.4);background:rgba(124,106,247,.08);color:#7c6af7;font-size:11px;text-decoration:none;font-family:monospace">⚔ arena</a>
-  </div>
-</header>
+<!-- ML_HOME_START -->
+<style id="mlHomeStyle">
+body.home-mode #app{display:none!important}
+body:not(.home-mode) #mlHome{display:none!important}
+#mlHome{min-height:100vh;background:var(--bg, #D8D5CE);color:var(--txt, #1A1814);font-family:var(--sans,Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif);overflow-x:hidden}
+#mlHome *{box-sizing:border-box}
+#mlHome .homeTop{position:fixed;top:0;left:0;right:0;height:54px;display:flex;align-items:center;padding:0 22px;z-index:80;background:rgba(216,213,206,.78);backdrop-filter:blur(14px);border-bottom:1px solid var(--brd, #B0ACA4)}
+#mlHome .homeBrand{font-family:var(--mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-weight:800;color:var(--warm, #C4622D);letter-spacing:.08em;font-size:12px}
+#mlHome .homeActions{margin-left:auto;display:flex;align-items:center;gap:10px}
+#mlHome .modeToggle{height:30px;display:flex;align-items:center;padding:3px;border:1px solid var(--brd, #B0ACA4);border-radius:999px;background:var(--panel, #EAE7E0)}
+#mlHome .modeBtn{height:22px;border:0;border-radius:999px;background:transparent;color:var(--mut, #625D54);font-family:var(--mono,monospace);font-size:10px;padding:0 10px;cursor:pointer}
+#mlHome .modeBtn.on{background:var(--accbg, #DDD9FB);color:var(--acc, #5C52C4)}
+#mlHome .homeSection{width:min(1120px,calc(100vw - 40px));margin:0 auto}
+#mlHome .hero{min-height:100vh;display:flex;align-items:center;justify-content:center;position:relative;padding:124px 0 54px;overflow:hidden}
+#mlHome .heroBg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+#mlHome .heroBg canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.92}
+#mlHome .wordField{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1}
+#mlHome .word{position:absolute;left:var(--x);bottom:-18vh;font-family:var(--mono,monospace);font-size:var(--s);letter-spacing:.05em;color:var(--txt, #1A1814);opacity:0;filter:blur(var(--b));transform:translate3d(0,0,0) scale(var(--scale));animation:mlWordRise var(--d) linear infinite;animation-delay:var(--delay)}
+@keyframes mlWordRise{0%{opacity:0;transform:translate3d(0,0,0) scale(var(--scale))}10%{opacity:var(--o)}58%{opacity:calc(var(--o) * .72)}82%{opacity:0}100%{opacity:0;transform:translate3d(var(--drift),-128vh,0) scale(var(--scale))}}
+#mlHome .heroCard{position:relative;z-index:2;width:min(760px,92vw);padding:44px 28px 38px;border:1px solid var(--brd, #B0ACA4);border-radius:20px;background:rgba(234,231,224,.70);backdrop-filter:blur(12px);box-shadow:0 26px 80px rgba(0,0,0,.12);text-align:center;overflow:hidden}
+#mlHome .logoMark{position:relative;width:94px;height:94px;margin:0 auto 22px;border:1px solid var(--brd, #B0ACA4);border-radius:24px;background:var(--panel2, #F4F1EA);display:flex;align-items:center;justify-content:center;font-family:var(--mono,monospace);font-size:24px;font-weight:800;color:var(--warm, #C4622D);letter-spacing:.07em}
+#mlHome h1{position:relative;font-size:clamp(34px,6vw,72px);line-height:.92;letter-spacing:-.055em;font-weight:650;margin-bottom:18px}
+#mlHome .claim{position:relative;font-family:var(--mono,monospace);font-size:13px;color:var(--acc, #5C52C4);letter-spacing:.08em;text-transform:lowercase;margin-bottom:14px}
+#mlHome .desc{position:relative;font-family:var(--mono,monospace);font-size:12px;color:var(--mut, #625D54);letter-spacing:.05em}
+#mlHome .scrollHint{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);font-family:var(--mono,monospace);font-size:10px;color:var(--mut2, #8A8479)}
+#mlHome .guide{padding:90px 0 70px}
+#mlHome .kicker{font-family:var(--mono,monospace);font-size:11px;color:var(--mut2, #8A8479);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+#mlHome .guideTitle{font-size:28px;letter-spacing:-.03em;font-weight:580;margin-bottom:24px}
+#mlHome .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+#mlHome .step{min-height:180px;border:1px solid var(--brd, #B0ACA4);border-radius:14px;background:var(--panel, #EAE7E0);padding:18px;position:relative;overflow:hidden}
+#mlHome .num{font-family:var(--mono,monospace);font-size:10px;color:var(--acc, #5C52C4);margin-bottom:30px}
+#mlHome .step h3{font-size:15px;font-weight:580;margin-bottom:10px}
+#mlHome .step p{font-size:12px;line-height:1.62;color:var(--mut, #625D54)}
+#mlHome .create{padding:70px 0 96px}
+#mlHome .createHero{height:470px;border:1px solid var(--brd, #B0ACA4);border-radius:20px;background:var(--panel, #EAE7E0);position:relative;overflow:hidden;cursor:pointer;box-shadow:0 18px 60px rgba(0,0,0,.10)}
+#mlHome .createHero canvas{position:absolute;inset:0;width:100%;height:100%;transition:filter .32s ease,opacity .32s ease,transform .32s ease}
+#mlHome .createOverlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(216,213,206,0);opacity:0;transform:translateY(6px);transition:opacity .32s ease,transform .32s ease,background .32s ease;pointer-events:none}
+#mlHome .createIcon{width:74px;height:74px;border-radius:50%;border:1px solid var(--acc, #5C52C4);background:rgba(234,231,224,.82);display:flex;align-items:center;justify-content:center;color:var(--acc, #5C52C4);font-size:34px;backdrop-filter:blur(8px)}
+#mlHome .createLabel{font-family:var(--mono,monospace);font-size:13px;color:var(--acc, #5C52C4);letter-spacing:.08em}
+#mlHome .createSub{font-size:12px;color:var(--mut, #625D54)}
+#mlHome .createHero:hover canvas, #mlHome .createHero:hover iframe, #mlHome .createHero:hover iframe{filter:blur(2px) contrast(.92);opacity:.34;transform:scale(1.015)}
+#mlHome .createHero:hover .createOverlay{opacity:1;transform:translateY(0);background:rgba(216,213,206,.46)}
+#mlHome .credits{border-top:1px solid var(--brd, #B0ACA4);padding:26px 0 34px;font-family:var(--mono,monospace);font-size:11px;color:var(--mut, #625D54);display:flex;justify-content:space-between;gap:14px}
 
-<div class="keys-panel">
-  <div class="keys-title">Chiavi API</div>
-  <div class="keys-grid">
-    <div class="key-field">
-      <label>Anthropic API Key <span style="color:#e94560">*</span></label>
-      <input type="password" id="anthropicKey" placeholder="sk-ant-..." />
+
+
+
+@media(max-width:820px){ #mlHome .steps{grid-template-columns:1fr}#mlHome .createHero{height:330px}#mlHome .homeTop{padding:0 14px}}
+
+#mlHome .createHero{
+  background:#fff;
+}
+#mlHome .createHero iframe{
+  position:absolute;
+  width:calc(100% + 80px)!important;
+  height:calc(100% + 80px)!important;
+  left:-40px!important;
+  top:-40px!important;
+  border:0!important;
+  transform:scale(1.08);
+  transform-origin:center;
+}
+
+
+#mlHome .createHero iframe{
+  pointer-events:none!important;
+}
+#mlHome .createOverlay{
+  pointer-events:none!important;
+}
+
+
+.floatingToolbar{
+  position:absolute;
+  left:50%;
+  bottom:22px;
+  transform:translateX(-50%);
+  height:42px;
+  padding:5px;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  background:rgba(200,196,188,.82);
+  border:1px solid var(--brd);
+  border-radius:13px;
+  backdrop-filter:blur(14px);
+  box-shadow:0 12px 38px rgba(0,0,0,.12);
+  z-index:80;
+}
+.floatTool{
+  height:32px;
+  min-width:32px;
+  border:0;
+  border-radius:9px;
+  background:transparent;
+  color:var(--mut);
+  font-family:var(--mono);
+  font-size:11px;
+  padding:0 10px;
+  cursor:pointer;
+}
+.floatTool:hover{
+  background:var(--accbg);
+  color:var(--acc);
+}
+.toolbar{
+  height:42px;
+  background:var(--ui);
+  border-bottom:1px solid var(--brd);
+  display:flex;
+  align-items:center;
+  padding:0 10px;
+  z-index:90;
+}
+.logo{
+  cursor:pointer;
+}
+
+</style>
+
+<div id="mlHome">
+  <header class="homeTop">
+    <div class="homeBrand">ML·</div>
+    <div class="homeActions">
+      <div class="modeToggle" aria-label="Seleziona modalità">
+        <button class="modeBtn on" id="mlGreyBtn">light grey</button>
+        <button class="modeIconPlaceholder" disabled>◐</button>
+      </div>
     </div>
-    <div class="key-field">
-      <label>OpenAI API Key <span style="color:#888">(per video/audio)</span></label>
-      <input type="password" id="openaiKey" placeholder="sk-..." />
+  </header>
+  <main>
+    <section class="hero">
+      <div class="heroBg"><canvas id="mlAmbientCanvas"></canvas><div class="wordField"><span class="word" style="--x:7%;--s:10px;--o:0.12;--b:0px;--scale:0.86;--d:18s;--delay:0.0s;--drift:-24px;--glow:4px">contenuto</span><span class="word" style="--x:44%;--s:11px;--o:0.38;--b:1.1px;--scale:1;--d:36s;--delay:2.9s;--drift:-14px;--glow:7px">distanza</span><span class="word" style="--x:81%;--s:12px;--o:0.3;--b:0.2px;--scale:1.18;--d:26s;--delay:5.8s;--drift:-6px;--glow:10px">relazione</span><span class="word" style="--x:40%;--s:13px;--o:0.24;--b:1.8px;--scale:0.94;--d:18s;--delay:8.7s;--drift:8px;--glow:13px">frame</span><span class="word" style="--x:77%;--s:14px;--o:0.2;--b:0.6px;--scale:1.08;--d:36s;--delay:11.6s;--drift:16px;--glow:4px">assenza</span><span class="word" style="--x:36%;--s:15px;--o:0.16;--b:0px;--scale:0.86;--d:26s;--delay:14.5s;--drift:28px;--glow:7px">voce</span><span class="word" style="--x:73%;--s:10px;--o:0.12;--b:1.1px;--scale:1;--d:18s;--delay:17.4s;--drift:-24px;--glow:10px">traccia</span><span class="word" style="--x:32%;--s:11px;--o:0.38;--b:0.2px;--scale:1.18;--d:36s;--delay:20.3s;--drift:-14px;--glow:13px">dubbio</span><span class="word" style="--x:69%;--s:12px;--o:0.3;--b:1.8px;--scale:0.94;--d:26s;--delay:23.2s;--drift:-6px;--glow:4px">prova</span><span class="word" style="--x:28%;--s:13px;--o:0.24;--b:0.6px;--scale:1.08;--d:18s;--delay:26.1s;--drift:8px;--glow:7px">domanda</span><span class="word" style="--x:65%;--s:14px;--o:0.2;--b:0px;--scale:0.86;--d:36s;--delay:29.0s;--drift:16px;--glow:10px">sintesi</span><span class="word" style="--x:24%;--s:15px;--o:0.16;--b:1.1px;--scale:1;--d:26s;--delay:31.9s;--drift:28px;--glow:13px">contesto</span><span class="word" style="--x:61%;--s:10px;--o:0.12;--b:0.2px;--scale:1.18;--d:18s;--delay:34.8s;--drift:-24px;--glow:4px">sguardo</span><span class="word" style="--x:20%;--s:11px;--o:0.38;--b:1.8px;--scale:0.94;--d:36s;--delay:37.7s;--drift:-14px;--glow:7px">fonte</span><span class="word" style="--x:57%;--s:12px;--o:0.3;--b:0.6px;--scale:1.08;--d:26s;--delay:40.6s;--drift:-6px;--glow:10px">ritmo</span><span class="word" style="--x:16%;--s:13px;--o:0.24;--b:0px;--scale:0.86;--d:18s;--delay:1.5s;--drift:8px;--glow:13px">vuoto</span><span class="word" style="--x:53%;--s:14px;--o:0.2;--b:1.1px;--scale:1;--d:36s;--delay:4.4s;--drift:16px;--glow:4px">scelta</span><span class="word" style="--x:12%;--s:15px;--o:0.16;--b:0.2px;--scale:1.18;--d:26s;--delay:7.3s;--drift:28px;--glow:7px">segno</span><span class="word" style="--x:49%;--s:10px;--o:0.12;--b:1.8px;--scale:0.94;--d:18s;--delay:10.2s;--drift:-24px;--glow:10px">posizione</span><span class="word" style="--x:8%;--s:11px;--o:0.38;--b:0.6px;--scale:1.08;--d:36s;--delay:13.1s;--drift:-14px;--glow:13px">lettura</span><span class="word" style="--x:45%;--s:12px;--o:0.3;--b:0px;--scale:0.86;--d:26s;--delay:16.0s;--drift:-6px;--glow:4px">tensione</span><span class="word" style="--x:82%;--s:13px;--o:0.24;--b:1.1px;--scale:1;--d:18s;--delay:18.9s;--drift:8px;--glow:7px">criterio</span><span class="word" style="--x:41%;--s:14px;--o:0.2;--b:0.2px;--scale:1.18;--d:36s;--delay:21.8s;--drift:16px;--glow:10px">memoria</span><span class="word" style="--x:78%;--s:15px;--o:0.16;--b:1.8px;--scale:0.94;--d:26s;--delay:24.7s;--drift:28px;--glow:13px">campo</span></div></div>
+      <div class="heroCard">
+        <div class="logoMark">ML·</div>
+        <h1>Media Lens</h1>
+        <div class="claim">trova la giusta distanza</div>
+        <div class="desc">osserva · collega · analizza · sintetizza</div>
+      </div>
+      <div class="scrollHint">scorri per capire il flusso</div>
+    </section>
+    <section class="guide homeSection">
+      <div class="kicker">guida rapida</div>
+      <div class="guideTitle">Un canvas per trasformare contenuti in conoscenza.</div>
+      <div class="steps">
+        <article class="step"><div class="num">01</div><h3>Porta un contenuto</h3><p>Inserisci un testo, un link, un video, un documento o un’esperienza da mettere a fuoco.</p></article>
+        <article class="step"><div class="num">02</div><h3>Dichiara l’intenzione</h3><p>Spiega perché lo stai analizzando: il sistema lavora sulla relazione tra te e il contenuto.</p></article>
+        <article class="step"><div class="num">03</div><h3>Genera analisi</h3><p>Collega più input, avvia letture relazionali e aggiorna il percorso quando emergono nuove risposte.</p></article>
+        <article class="step"><div class="num">04</div><h3>Costruisci sintesi</h3><p>Seleziona le analisi e produci un output finale leggibile, tracciabile e progettuale.</p></article>
+      </div>
+    </section>
+    <section class="create homeSection">
+      <div class="kicker">inizia</div>
+      <div class="createHero" id="mlCreateProject">
+        <iframe id="mlCreateFrame" src="/static/metodo_2_6_original.html" style="position:absolute;inset:0;width:100%;height:100%;border:0;"></iframe>
+        <div class="createOverlay"><div class="createIcon">＋</div><div class="createLabel">nuovo progetto</div><div class="createSub">apri il canvas e comincia dal primo input</div></div>
+      </div>
+    </section>
+    <footer class="credits homeSection"><span>Media Lens v4</span><span>realizzato da Giorgio Spinelli</span></footer>
+  </main>
+</div>
+
+<div id="app">
+  <div class="toolbar">
+    <div class="logo" id="homeLogo">ML·</div>
+    <button class="tool" id="newInputBtn" style="display:none">+ Input</button>
+    <button class="tool" id="chatBtn" style="display:none">◌</button>
+    <button class="tool" id="fitBtn" style="display:none">⌖</button>
+    <button class="tool" id="outputBtn" style="display:none">▤</button>
+    <div class="spacer"></div>
+    <button class="tool" id="settingsBtn">⚙</button>
+  </div>
+
+  <div class="stage">
+    <div id="canvas">
+      <div id="layer">
+        <svg id="edges"></svg>
+      </div>
+
+      <div class="actions" id="nodeActions">
+        <button class="a-btn" id="addLinkedInput" title="Input collegato">＋</button>
+        <button class="a-btn" id="addAnalysis" title="Analisi">◇</button>
+        <button class="a-btn" id="addSynthesis" title="Sintesi">◎</button>
+        <button class="a-btn" id="editNode" title="Editor">✎</button>
+        <button class="a-btn" id="deleteNode" title="Elimina">×</button>
+      </div>
+
+      <div id="selectionBox"></div>
     </div>
-  </div>
-  <div class="keys-note">Le chiavi restano nel tuo browser. Non vengono mai inviate a server terzi.</div>
-</div>
 
-<div class="mode-tabs">
-  <button class="mode-tab active" data-mode="text" onclick="setMode('text')"><span class="dot"></span>Testo / Post</button>
-  <button class="mode-tab" data-mode="url" onclick="setMode('url')"><span class="dot"></span>Link Video</button>
-  <button class="mode-tab" data-mode="transcript" onclick="setMode('transcript')"><span class="dot"></span>Trascrizione</button>
-  <button class="mode-tab" data-mode="article" onclick="setMode('article')"><span class="dot"></span>Articolo</button>
-  <button class="mode-tab" data-mode="live" onclick="setMode('live')"><span class="dot"></span>🔴 Live</button>
-</div>
+    <section class="win" id="inputWin">
+      <div class="wh">Nuovo input <span class="wclose" data-close="inputWin">×</span></div>
+      <div class="wb">
+        <label>Tipo</label>
+        <select id="inputType">
+          <option>Testo scritto</option><option>Video</option><option>Audio</option>
+          <option>Documento istituzionale</option><option>Opera</option><option>Persona</option>
+          <option>Organizzazione</option><option>Concetto</option><option>Evento</option>
+          <option>Dato</option><option>Esperienza personale</option>
+        </select>
+        <label>Titolo</label>
+        <input id="inputTitle" placeholder="Titolo nodo">
+        <label>Contenuto / link</label>
+        <textarea id="inputContent" placeholder="Incolla contenuto, link o descrizione..."></textarea>
+        <label>Intenzione dell’analisi · obbligatoria</label>
+        <textarea id="inputIntent" placeholder="Perché porti questo contenuto? Cosa vuoi capire?"></textarea>
+        <button class="btn" id="createInput">Aggiungi al canvas</button>
+      </div>
+    </section>
 
-<div class="error-box" id="errorBox"></div>
+    <section class="win" id="editorWin">
+      <div class="wh">Editor nodo <span class="wclose" data-close="editorWin">×</span></div>
+      <div class="wb">
+        <label>Titolo</label>
+        <input id="editTitle">
+        <label>Contenuto</label>
+        <textarea id="editContent"></textarea>
+        <label>Intenzione</label>
+        <textarea id="editIntent"></textarea>
+        <button class="btn" id="saveNodeEdit">Salva nodo</button>
+      </div>
+    </section>
 
-<!-- Text / Transcript / Article -->
-<div id="inputText" class="input-panel">
-  <div class="input-inner">
-    <textarea id="textInput" placeholder="Incolla qui il testo da analizzare: post social, trascrizione, articolo, testo di un discorso..." rows="6" oninput="updateCharCount()"></textarea>
-  </div>
-  <div class="input-footer">
-    <span class="char-count" id="charCount">0 caratteri</span>
-    <button class="btn-analyze" id="analyzeBtn" onclick="analyze()">
-      <span id="btnIcon">⟳</span> Analizza
-    </button>
-  </div>
-</div>
+    <section class="win" id="contentWin">
+      <div class="wh">Contenuto <span class="wclose" data-close="contentWin">×</span></div>
+      <div class="wb" id="contentBody">
+        <div class="meta">Doppio click su un nodo per aprire il contenuto.</div>
+      </div>
+    </section>
 
-<!-- URL -->
-<div id="inputUrl" class="input-panel" style="display:none">
-  <div class="input-inner">
-    <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:8px">YouTube, Instagram Reel, TikTok, podcast...</label>
-    <input type="url" id="urlInput" placeholder="https://youtube.com/watch?v=... oppure https://www.instagram.com/reel/..." />
-  </div>
-  <div class="input-footer">
-    <span style="font-size:11px;color:var(--hint)">Richiede OpenAI API Key per la trascrizione</span>
-    <button class="btn-analyze" id="analyzeBtnUrl" onclick="analyze()">
-      <span id="btnIconUrl">⟳</span> Scarica e analizza
-    </button>
-  </div>
-</div>
+    <section class="win" id="chatWin">
+      <div class="wh">Chat <span class="wclose" data-close="chatWin">×</span></div>
+      <div class="wb" style="display:flex;flex-direction:column;height:100%;">
+        <div id="chatMessages" style="flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+        <textarea id="chatInput" placeholder="Chiedi alla guida di Media Lens..." style="min-height:70px;"></textarea>
+        <button class="btn" id="sendChat">Invia</button>
+      </div>
+    </section>
 
-<!-- Live -->
-<div id="livePanel" class="live-panel">
-  <div class="live-header">
-    <div class="live-indicator" id="liveIndicator"></div>
-    <span class="live-status" id="liveStatus">Premi Start per iniziare l'ascolto</span>
-  </div>
-  <div class="live-transcript" id="liveTranscript">Il testo trascritto apparirà qui mentre parli...</div>
-  <div style="display:flex;gap:10px;margin-bottom:16px">
-    <button class="btn-live" id="liveBtn" onclick="toggleLive()">▶ Start ascolto</button>
-    <button class="btn-live" onclick="clearLive()" style="opacity:.6">✕ Pulisci</button>
-  </div>
-  <div class="live-chunks" id="liveChunks"></div>
-</div>
+    <section class="win" id="outputWin">
+      <div class="wh">Output <span class="wclose" data-close="outputWin">×</span></div>
+      <div class="wb" id="outputBody">
+        <div class="meta">Output finale del progetto.</div>
+      </div>
+    </section>
 
-<!-- Results -->
-<div class="results" id="results">
-  <div class="scores-grid" id="scoresGrid"></div>
-  <div id="analysisSections"></div>
-  <div class="verdict-card" id="verdictCard"></div>
-  <div style="text-align:center;margin-top:12px">
-    <button onclick="downloadReport()" style="padding:10px 24px;border-radius:8px;border:0.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#f0f0f5;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit" onmouseover="this.style.background='rgba(255,255,255,.12)'" onmouseout="this.style.background='rgba(255,255,255,.06)'">⬇ Scarica report PDF</button>
+    <section class="win" id="settingsWin">
+      <div class="wh">Impostazioni <span class="wclose" data-close="settingsWin">×</span></div>
+      <div class="wb">
+        <label>Chiave Anthropic</label>
+        <input id="anthropicKey" type="password" placeholder="sk-ant-...">
+        <label>Chiave OpenAI</label>
+        <input id="openaiKey" type="password" placeholder="sk-...">
+        <button class="btn" id="saveSettings">Salva impostazioni</button>
+      </div>
+    </section>
   </div>
-</div>
 
+    <div class="floatingToolbar" id="floatingToolbar">
+      <button class="floatTool" id="floatInputBtn" title="Input">＋</button>
+      <button class="floatTool" id="floatChatBtn" title="Chat">◌</button>
+      <button class="floatTool" id="floatFitBtn" title="Adatta">⌖</button>
+      <button class="floatTool" id="floatOutputBtn" title="Output">▤</button>
+    </div>
 </div>
 
 <script>
+const canvas=document.getElementById("canvas"),layer=document.getElementById("layer"),edges=document.getElementById("edges");
+const actions=document.getElementById("nodeActions"),selectionBox=document.getElementById("selectionBox");
+let panX=0,panY=0,zoom=1,selected=null,selectedSet=new Set(),mode=null,start=null,nodeId=0,editingNode=null;
 
-function downloadReport() {
-  const el = document.getElementById("results");
-  if (!el || !el.classList.contains("show")) { alert("Esegui prima un analisi!"); return; }
-  const scores = document.getElementById("scoresGrid").innerHTML;
-  const sections = document.getElementById("analysisSections").innerHTML;
-  const verdict = document.getElementById("verdictCard").innerHTML;
-  const style = "<style>body{font-family:sans-serif;padding:32px;max-width:800px;margin:0 auto;color:#111} h1{color:#e94560} .score-card{display:inline-block;margin:8px;padding:12px 16px;border:1px solid #ddd;border-radius:8px;text-align:center;min-width:120px} .sc-label{font-size:11px;color:#888;text-transform:uppercase} .sc-value{font-size:24px;font-weight:700} .danger{color:#e94560} .warn{color:#f59e0b} .safe{color:#22c55e} .analysis-section{margin:16px 0;border:1px solid #ddd;border-radius:8px;overflow:hidden} .as-header{padding:12px 16px;background:#f8f8f8;display:flex;align-items:center;gap:10px} .as-title{font-weight:600;flex:1} .as-body{padding:12px 16px;display:block!important} .as-chevron{display:none} .claim-item{margin:8px 0;padding:10px 14px;border-left:3px solid #ddd;background:#fafafa} .claim-item.red{border-left-color:#e94560} .claim-item.yellow{border-left-color:#f59e0b} .claim-item.green{border-left-color:#22c55e} .technique-pills{margin-top:8px} .tech-pill{display:inline-block;margin:3px;padding:3px 10px;border-radius:10px;background:#eee;font-size:12px} .verdict-card{margin-top:20px;padding:20px;border:1px solid #ddd;border-radius:8px} .scores-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}</style>";
-  const html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><title>Report Media Lens</title>" + style + "</head><body><h1>Media Lens — Report di analisi</h1><p style=\"color:#888;font-size:13px\">Generato il " + new Date().toLocaleString("it-IT") + "</p><div class=\"scores-grid\">" + scores + "</div>" + sections + "<div class=\"verdict-card\">" + verdict + "</div></body></html>";
-  const blob = new Blob([html], {type: "text/html"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "medialens-report-" + new Date().toISOString().slice(0,10) + ".html";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+function nodes(){return[...layer.querySelectorAll(".node")]}
+function apply(){layer.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`;drawEdges();positionActions()}
+function worldFromPoint(x,y){const r=canvas.getBoundingClientRect();return{x:(x-r.left-panX)/zoom,y:(y-r.top-panY)/zoom}}
+function world(e){return worldFromPoint(e.clientX,e.clientY)}
+
+function openWin(id,x=null,y=null){
+  const w=document.getElementById(id);
+  if(!w)return;
+  w.classList.add("open");
+  if(x!==null){w.style.left=x+"px";w.style.top=y+"px";}
+}
+function closeWin(id){document.getElementById(id)?.classList.remove("open")}
+
+document.querySelectorAll(".wclose").forEach(c=>c.onclick=()=>closeWin(c.dataset.close));
+
+document.querySelectorAll(".win").forEach(win=>{
+  const h=win.querySelector(".wh");
+  let drag=false,ox=0,oy=0;
+  h.onmousedown=e=>{
+    if(e.target.classList.contains("wclose"))return;
+    const r=win.getBoundingClientRect();
+    ox=e.clientX-r.left;oy=e.clientY-r.top;drag=true;
+    e.preventDefault();
+  };
+  document.addEventListener("mousemove",e=>{
+    if(!drag)return;
+    win.style.left=e.clientX-ox+"px";
+    win.style.top=e.clientY-oy+"px";
+  });
+  document.addEventListener("mouseup",()=>drag=false);
+});
+
+function clearSelection(){
+  selectedSet.forEach(n=>n.classList.remove("active"));
+  selectedSet.clear();selected=null;actions.classList.remove("show");
+}
+function select(n,add=false){
+  if(!add)clearSelection();
+  selected=n;selectedSet.add(n);n.classList.add("active");
+  positionActions();actions.classList.add("show");
+}
+function toggleSelect(n){
+  if(selectedSet.has(n)){n.classList.remove("active");selectedSet.delete(n);selected=[...selectedSet][selectedSet.size-1]||null}
+  else{selectedSet.add(n);n.classList.add("active");selected=n}
+  if(selected){positionActions();actions.classList.add("show")}else actions.classList.remove("show");
+}
+function positionActions(){
+  if(!selected)return;
+  if(actions.parentElement!==layer)layer.appendChild(actions);
+  actions.style.left=parseFloat(selected.style.left)+"px";
+  actions.style.top=parseFloat(selected.style.top)+selected.offsetHeight+8+"px";
 }
 
-let currentMode = 'text';
-let recognition = null;
-let isListening = false;
-let liveBuffer = '';
-let chunkNum = 0;
-let liveTimer = null;
-
-function setMode(mode) {
-  currentMode = mode;
-  document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
-  document.getElementById('inputText').style.display = ['text','transcript','article'].includes(mode) ? 'block' : 'none';
-  document.getElementById('inputUrl').style.display = mode === 'url' ? 'block' : 'none';
-  document.getElementById('livePanel').classList.toggle('show', mode === 'live');
-  document.getElementById('results').classList.remove('show');
-  hideError();
+function addNode({type,title,content,intent,x=120,y=120,kind="input",parent=null}){
+  const n=document.createElement("div");
+  n.className="node "+kind;n.id="node"+(++nodeId);
+  n.style.left=x+"px";n.style.top=y+"px";
+  n.dataset.type=type;n.dataset.content=content||"";n.dataset.intent=intent||"";n.dataset.parent=parent||"";
+  n.innerHTML=`<div class="ntype">${type}</div><div class="ntitle">${title}</div>`;
+  layer.appendChild(n);bindNode(n);select(n);drawEdges();return n;
 }
-
-function updateCharCount() {
-  const l = document.getElementById('textInput').value.length;
-  document.getElementById('charCount').textContent = l + ' caratteri';
-}
-
-function showError(msg) {
-  const el = document.getElementById('errorBox');
-  el.textContent = '⚠ ' + msg;
-  el.classList.add('show');
-}
-function hideError() {
-  document.getElementById('errorBox').classList.remove('show');
-}
-
-function getKeys() {
-  return {
-    anthropic: document.getElementById('anthropicKey').value.trim(),
-    openai: document.getElementById('openaiKey').value.trim()
+function bindNode(n){
+  n.onmousedown=e=>{
+    if(e.button!==0)return;
+    e.stopPropagation();
+    if(e.shiftKey){toggleSelect(n);return}
+    if(!selectedSet.has(n))select(n);
+    const p=world(e);
+    start={x:p.x,y:p.y,originals:[...selectedSet].map(el=>({el,x:parseFloat(el.style.left),y:parseFloat(el.style.top)}))};
+    mode="drag";
+  };
+  n.ondblclick=e=>{
+    e.stopPropagation();
+    showContent(n);
+    openWin("contentWin",window.innerWidth-390,70);
   };
 }
+function getAnchor(from, to){
+  const ax = parseFloat(from.style.left);
+  const ay = parseFloat(from.style.top);
+  const aw = from.offsetWidth;
+  const ah = from.offsetHeight;
 
-function getScoreClass(v) {
-  if (v >= 70) return 'danger';
-  if (v >= 40) return 'warn';
-  return 'safe';
-}
+  const bx = parseFloat(to.style.left);
+  const by = parseFloat(to.style.top);
+  const bw = to.offsetWidth;
+  const bh = to.offsetHeight;
 
-function getBadgeClass(level) {
-  const l = (level||'').toLowerCase();
-  if (l.includes('alto') || l.includes('grave') || l.includes('forte') || l.includes('molto')) return 'bd-danger';
-  if (l.includes('medio') || l.includes('moderato') || l.includes('parzial')) return 'bd-warn';
-  if (l.includes('basso') || l.includes('assente') || l.includes('nessun')) return 'bd-ok';
-  return 'bd-neutral';
-}
+  const acx = ax + aw/2;
+  const acy = ay + ah/2;
+  const bcx = bx + bw/2;
+  const bcy = by + bh/2;
 
-function renderResults(data) {
-  const phase0 = data.phase0 || {};
-  const phase1 = data.phase1 || {};
-  const phase2 = data.phase2 || {};
+  const dx = bcx - acx;
+  const dy = bcy - acy;
 
-  const ra = document.getElementById('results');
-
-  // ── SEZIONE 1: Classificazione ──────────────────────────────────────────
-  const riskColors = {low:'safe', medium:'warn', high:'danger'};
-  const riskLabels = {low:'Basso', medium:'Medio', high:'Alto'};
-  const typeIcons = {
-    informativo:'📰', politico:'🏛', attivista:'✊', testimoniale:'🎙',
-    educativo:'📚', intrattenimento:'🎭', commerciale:'💰', misto:'🔀',
-    complottista:'⚠️', satirico:'🎪'
-  };
-  const icon = typeIcons[phase0.content_type] || '📄';
-  const riskCls = riskColors[phase0.risk_profile] || 'warn';
-
-  let s1 = `<div class="analysis-section" style="margin-bottom:10px;border-color:rgba(124,106,247,.4)">
-    <div class="as-header" onclick="toggleSection('s1')" style="background:rgba(124,106,247,.08)">
-      <div class="as-icon ic-bias" style="font-size:18px">${icon}</div>
-      <div style="flex:1">
-        <span class="as-title">Sezione 1 — Classificazione del contenuto</span>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">${phase0.content_type_label || phase0.content_type || 'n.d.'}</div>
-      </div>
-      <span class="as-badge ${riskCls === 'danger' ? 'bd-danger' : riskCls === 'warn' ? 'bd-warn' : 'bd-ok'}">Profilo rischio: ${riskLabels[phase0.risk_profile] || 'n.d.'}</span>
-      <span class="as-chevron" id="chevs1">▾</span>
-    </div>
-    <div class="as-body open" id="bodys1">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
-        <div style="background:var(--surface2);border-radius:8px;padding:12px">
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Intento</div>
-          <div style="font-size:13px;color:var(--text)">${phase0.intent || 'n.d.'}</div>
-        </div>
-        <div style="background:var(--surface2);border-radius:8px;padding:12px">
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Pubblico target</div>
-          <div style="font-size:13px;color:var(--text)">${phase0.target_audience || 'n.d.'}</div>
-        </div>
-      </div>
-      <div style="background:rgba(124,106,247,.08);border:0.5px solid rgba(124,106,247,.3);border-radius:8px;padding:12px;margin-top:10px">
-        <div style="font-size:11px;color:rgba(124,106,247,.8);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Domanda critica guida</div>
-        <div style="font-size:14px;color:var(--text);font-style:italic">"${phase0.guiding_question || 'n.d.'}"</div>
-      </div>
-      <p class="as-text">${phase0.classification_note || ''}</p>
-    </div>
-  </div>`;
-
-  // ── SEZIONE 2: Analisi calibrata ────────────────────────────────────────
-  const scores = [
-    {label:'Claim a rischio', val: phase1.risk_score_claims},
-    {label:'Framing emotivo', val: phase1.risk_score_framing},
-    {label:'Bias ideologico', val: phase1.risk_score_bias},
-    {label:'Retorica manip.', val: phase1.risk_score_rhetoric}
-  ];
-
-  let scoresHtml = '<div class="scores-grid" style="margin-top:14px">' + scores.map(s =>
-    `<div class="score-card"><div class="sc-label">${s.label}</div><div class="sc-value ${getScoreClass(s.val||0)}">${s.val||0}%</div></div>`
-  ).join('') + '</div>';
-
-  const subsections = [
-    {icon:'⬤', cls:'ic-claims', title:'Claim fattuali', badge: phase1.claims_level, body: () => {
-      let h = `<p class="as-text">${phase1.claims_summary||''}</p>`;
-      (phase1.claims||[]).forEach(c => {
-        const cc = c.color==='red'?'red':c.color==='green'?'green':'yellow';
-        const vk = c.verdict_key==='false'?'vt-false':c.verdict_key==='true'?'vt-true':c.verdict_key==='partial'?'vt-partial':'vt-unverifiable';
-        h += `<div class="claim-item ${cc}"><div class="claim-text">"${c.claim}"</div><div class="claim-meta"><span class="verdict-tag ${vk}">${c.verdict_label}</span><span class="claim-expl">${c.explanation}</span></div></div>`;
-      });
-      return h;
-    }},
-    {icon:'◎', cls:'ic-framing', title:'Framing emotivo', badge: phase1.framing_level, body: () => {
-      let h = `<p class="as-text">${phase1.framing_analysis||''}</p>`;
-      if(phase1.framing_examples) h += `<div class="claim-item yellow" style="margin-top:10px"><div class="claim-text" style="font-weight:400;font-style:italic">${phase1.framing_examples}</div></div>`;
-      return h;
-    }},
-    {icon:'◈', cls:'ic-bias', title:'Bias ideologico', badge: phase1.bias_level, body: () => {
-      let h = `<p class="as-text">${phase1.bias_analysis||''}</p>`;
-      if(phase1.bias_spectrum) h += `<div class="claim-item yellow" style="margin-top:10px"><div class="claim-text">Posizionamento</div><div class="claim-expl">${phase1.bias_spectrum}</div></div>`;
-      return h;
-    }},
-    {icon:'◉', cls:'ic-rhetoric', title:'Tecniche retoriche', badge: phase1.rhetoric_level, body: () => {
-      let h = `<p class="as-text">${phase1.rhetoric_analysis||''}</p>`;
-      if((phase1.rhetoric_techniques||[]).length) h += `<div class="technique-pills">${phase1.rhetoric_techniques.map(t=>`<span class="tech-pill">${t}</span>`).join('')}</div>`;
-      return h;
-    }},
-    {icon:'◌', cls:'ic-omissions', title:'Omissioni', badge: phase1.omissions_level, body: () => {
-      let h = `<p class="as-text">${phase1.omissions_analysis||''}</p>`;
-      (phase1.omissions||[]).forEach(o => { h += `<div class="omission-item">${o}</div>`; });
-      return h;
-    }}
-  ];
-
-  let subsHtml = subsections.map((s,i) => `
-    <div class="analysis-section" style="margin-bottom:6px">
-      <div class="as-header" onclick="toggleSection('s2_${i}')">
-        <div class="as-icon ${s.cls}">${s.icon}</div>
-        <span class="as-title">${s.title}</span>
-        <span class="as-badge ${getBadgeClass(s.badge)}">${s.badge||'n.d.'}</span>
-        <span class="as-chevron" id="chevs2_${i}">▾</span>
-      </div>
-      <div class="as-body" id="bodys2_${i}">${s.body()}</div>
-    </div>`).join('');
-
-  let s2 = `<div class="analysis-section" style="margin-bottom:10px;border-color:rgba(233,69,96,.4)">
-    <div class="as-header" onclick="toggleSection('s2')" style="background:rgba(233,69,96,.08)">
-      <div class="as-icon ic-claims">◎</div>
-      <div style="flex:1">
-        <span class="as-title">Sezione 2 — Analisi calibrata</span>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">Calibrata sul tipo: ${phase0.content_type_label || phase0.content_type || 'n.d.'}</div>
-      </div>
-      <span class="as-chevron" id="chevs2">▾</span>
-    </div>
-    <div class="as-body open" id="bodys2">
-      ${scoresHtml}
-      <div style="margin-top:12px">${subsHtml}</div>
-      <div class="verdict-card" style="margin-top:12px">
-        <div class="vc-label">Verdetto calibrato</div>
-        <div class="vc-text">${phase1.overall_verdict||''}</div>
-        ${phase1.reader_advice ? `<div class="vc-advice"><strong>Consiglio:</strong> ${phase1.reader_advice}</div>` : ''}
-      </div>
-    </div>
-  </div>`;
-
-  // ── SEZIONE 3: Verifica fatti ────────────────────────────────────────────
-  const vc = phase2.verified_claims || [];
-  let claimsHtml = vc.map(c => {
-    const vk = c.verdict_key==='false'?'vt-false':c.verdict_key==='true'?'vt-true':c.verdict_key==='partial'?'vt-partial':c.verdict_key==='opinion'?'vt-unverifiable':'vt-unverifiable';
-    const cc = c.color==='red'?'red':c.color==='green'?'green':'yellow';
-    const sources = (c.sources||[]).map(s=>`<a href="#" style="color:var(--info);font-size:11px;display:block;margin-top:3px">${s}</a>`).join('');
-    return `<div class="claim-item ${cc}" style="margin-top:10px">
-      <div class="claim-text">"${c.claim}"</div>
-      <div class="claim-meta" style="margin-top:6px">
-        <span class="verdict-tag ${vk}">${c.verdict}</span>
-        <span style="font-size:11px;color:var(--hint);margin-left:6px">Confidenza: ${c.confidence||'n.d.'}</span>
-      </div>
-      <div class="claim-expl" style="margin-top:6px">${c.explanation}</div>
-      ${sources ? `<div style="margin-top:6px">${sources}</div>` : ''}
-    </div>`;
-  }).join('');
-
-  let s3 = `<div class="analysis-section" style="margin-bottom:10px;border-color:rgba(34,197,94,.4)">
-    <div class="as-header" onclick="toggleSection('s3')" style="background:rgba(34,197,94,.08)">
-      <div class="as-icon ic-omissions">✓</div>
-      <div style="flex:1">
-        <span class="as-title">Sezione 3 — Verifica dei fatti</span>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">${vc.length} claim verificati</div>
-      </div>
-      <span class="as-chevron" id="chevs3">▾</span>
-    </div>
-    <div class="as-body open" id="bodys3">
-      ${claimsHtml || '<p class="as-text" style="margin-top:14px">Nessun claim verificabile identificato.</p>'}
-      ${phase2.fact_check_summary ? `<div style="background:var(--surface2);border-radius:8px;padding:12px;margin-top:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Sintesi verifica</div><div style="font-size:13px;color:var(--text)">${phase2.fact_check_summary}</div></div>` : ''}
-      ${phase2.most_problematic ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(233,69,96,.08);border-radius:8px;border-left:3px solid var(--accent)"><div style="font-size:11px;color:var(--accent);font-weight:500;margin-bottom:4px">Claim più problematico</div><div style="font-size:12px;color:var(--muted)">${phase2.most_problematic}</div></div>` : ''}
-      ${phase2.most_solid ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(34,197,94,.08);border-radius:8px;border-left:3px solid var(--ok)"><div style="font-size:11px;color:var(--ok);font-weight:500;margin-bottom:4px">Claim più solido</div><div style="font-size:12px;color:var(--muted)">${phase2.most_solid}</div></div>` : ''}
-    </div>
-  </div>`;
-
-  // Trascrizione
-  let transcr = data.transcription ? `<div class="transcription-box"><strong style="color:var(--muted);font-style:normal">Trascrizione (anteprima):</strong><br>${data.transcription}</div>` : '';
-
-  // Download button
-  let dlBtn = `<div style="text-align:center;margin-top:16px"><button onclick="downloadReport()" style="padding:10px 24px;border-radius:8px;border:0.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#f0f0f5;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit">⬇ Scarica report</button></div>`;
-
-  document.getElementById('scoresGrid').innerHTML = '';
-  document.getElementById('analysisSections').innerHTML = s1 + s2 + s3 + transcr;
-  document.getElementById('verdictCard').innerHTML = dlBtn;
-
-  document.getElementById('results').classList.add('show');
-  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function toggleSection(id) {
-  const body = document.getElementById('body' + id);
-  const chev = document.getElementById('chev' + id);
-  if (body) body.classList.toggle('open');
-  if (chev) chev.classList.toggle('open');
-}
-
-async function analyze() {
-  hideError();
-  const keys = getKeys();
-  if (!keys.anthropic) { showError('Inserisci la tua chiave API Anthropic'); return; }
-
-  const isUrl = currentMode === 'url';
-  const text = document.getElementById('textInput')?.value?.trim() || '';
-  const url = document.getElementById('urlInput')?.value?.trim() || '';
-
-  if (isUrl && !url) { showError('Inserisci un URL valido'); return; }
-  if (!isUrl && !text) { showError('Inserisci del testo da analizzare'); return; }
-  if (isUrl && !keys.openai) { showError('Per analizzare video serve anche la chiave OpenAI (per la trascrizione audio)'); return; }
-
-  const btn = document.getElementById(isUrl ? 'analyzeBtnUrl' : 'analyzeBtn');
-  const iconEl = document.getElementById(isUrl ? 'btnIconUrl' : 'btnIcon');
-  btn.disabled = true;
-  iconEl.innerHTML = '<div class="spinner"></div>';
-
-  try {
-    const body = {
-      anthropic_key: keys.anthropic,
-      openai_key: keys.openai,
-      mode: currentMode,
-      text: text,
-      url: url
-    };
-    const resp = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Errore sconosciuto');
-    renderResults(data);
-  } catch(e) {
-    showError(e.message);
-  } finally {
-    btn.disabled = false;
-    iconEl.innerHTML = '⟳';
+  if (Math.abs(dx) > Math.abs(dy)) {
+    if (dx >= 0) {
+      return {
+        a:{x:ax+aw,y:acy},
+        b:{x:bx,y:bcy},
+        dir:"h"
+      };
+    } else {
+      return {
+        a:{x:ax,y:acy},
+        b:{x:bx+bw,y:bcy},
+        dir:"h"
+      };
+    }
+  } else {
+    if (dy >= 0) {
+      return {
+        a:{x:acx,y:ay+ah},
+        b:{x:bcx,y:by},
+        dir:"v"
+      };
+    } else {
+      return {
+        a:{x:acx,y:ay},
+        b:{x:bcx,y:by+bh},
+        dir:"v"
+      };
+    }
   }
 }
 
-// ---- LIVE ----
-function toggleLive() {
-  if (isListening) stopLive(); else startLive();
+
+function edgeParents(n){
+  return (n.dataset.parents || n.dataset.parent || "").split(",").filter(Boolean);
 }
 
-function startLive() {
-  const keys = getKeys();
-  if (!keys.anthropic) { showError('Inserisci la chiave API Anthropic prima di iniziare'); return; }
+function anchorPair(a,b){
+  const ax=parseFloat(a.style.left), ay=parseFloat(a.style.top), aw=a.offsetWidth, ah=a.offsetHeight;
+  const bx=parseFloat(b.style.left), by=parseFloat(b.style.top), bw=b.offsetWidth, bh=b.offsetHeight;
 
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { showError('Il tuo browser non supporta il riconoscimento vocale. Usa Chrome o Edge.'); return; }
+  const acx=ax+aw/2, acy=ay+ah/2;
+  const bcx=bx+bw/2, bcy=by+bh/2;
 
-  recognition = new SpeechRecognition();
-  recognition.lang = 'it-IT';
-  recognition.continuous = true;
-  recognition.interimResults = true;
+  const candidates=[
+    {a:{x:ax+aw,y:acy}, b:{x:bx,y:bcy}},
+    {a:{x:ax,y:acy}, b:{x:bx+bw,y:bcy}},
+    {a:{x:acx,y:ay+ah}, b:{x:bcx,y:by}},
+    {a:{x:acx,y:ay}, b:{x:bcx,y:by+bh}}
+  ];
 
-  recognition.onresult = (e) => {
-    let interim = '';
-    let final = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
-      else interim += e.results[i][0].transcript;
-    }
-    if (final) liveBuffer += final;
-    document.getElementById('liveTranscript').textContent = liveBuffer + (interim ? '...' + interim : '');
+  candidates.sort((p,q)=>{
+    const dp=Math.hypot(p.a.x-p.b.x,p.a.y-p.b.y);
+    const dq=Math.hypot(q.a.x-q.b.x,q.a.y-q.b.y);
+    return dp-dq;
+  });
+
+  return candidates[0];
+}
+
+function drawEdges(){
+  let h="";
+  nodes().forEach(n=>{
+    edgeParents(n).forEach(pid=>{
+      const a=document.getElementById(pid);
+      if(!a)return;
+
+      const p=anchorPair(a,n);
+      const dx=p.b.x-p.a.x;
+      const dy=p.b.y-p.a.y;
+
+      const c1x=p.a.x+dx*.45;
+      const c1y=p.a.y;
+      const c2x=p.b.x-dx*.45;
+      const c2y=p.b.y;
+
+      h+=`<path d="M${p.a.x},${p.a.y} C${c1x},${c1y} ${c2x},${c2y} ${p.b.x},${p.b.y}" stroke="#8B82E8" stroke-width="1" fill="none"/>`;
+    });
+  });
+  edges.innerHTML=h;
+}
+
+
+function showContent(n){
+  contentBody.innerHTML=`<div class="meta">${n.dataset.type}</div>
+  <h3 style="font-size:15px;margin:8px 0">${n.querySelector(".ntitle").textContent}</h3>
+  <div class="content">${n.dataset.content||"Nessun contenuto."}</div>
+  ${n.dataset.intent?`<br><div class="meta">Intenzione</div><div class="content">${n.dataset.intent}</div>`:""}`;
+}
+
+canvas.onmousedown=e=>{
+  if(e.target!==canvas)return;
+  const p=world(e);
+  if(e.shiftKey){
+    mode="rect";start={x:p.x,y:p.y,sx:e.clientX,sy:e.clientY};
+    selectionBox.style.display="block";return;
+  }
+  clearSelection();
+  mode="pan";start={x:e.clientX,y:e.clientY,panX,panY};
+};
+document.onmousemove=e=>{
+  if(!mode||!start)return;
+  if(mode==="pan"){panX=start.panX+e.clientX-start.x;panY=start.panY+e.clientY-start.y;apply()}
+  if(mode==="drag"){
+    const p=world(e),dx=p.x-start.x,dy=p.y-start.y;
+    start.originals.forEach(o=>{o.el.style.left=o.x+dx+"px";o.el.style.top=o.y+dy+"px"});
+    drawEdges();positionActions();
+  }
+  if(mode==="rect"){
+    const cr=canvas.getBoundingClientRect();
+    const x1=Math.min(start.sx,e.clientX)-cr.left,y1=Math.min(start.sy,e.clientY)-cr.top;
+    const x2=Math.max(start.sx,e.clientX)-cr.left,y2=Math.max(start.sy,e.clientY)-cr.top;
+    selectionBox.style.left=x1+"px";selectionBox.style.top=y1+"px";
+    selectionBox.style.width=x2-x1+"px";selectionBox.style.height=y2-y1+"px";
+    const a=worldFromPoint(Math.min(start.sx,e.clientX),Math.min(start.sy,e.clientY));
+    const b=worldFromPoint(Math.max(start.sx,e.clientX),Math.max(start.sy,e.clientY));
+    clearSelection();
+    nodes().forEach(n=>{
+      const nx=parseFloat(n.style.left),ny=parseFloat(n.style.top),nw=n.offsetWidth,nh=n.offsetHeight;
+      if(nx+nw>=a.x&&nx<=b.x&&ny+nh>=a.y&&ny<=b.y){selectedSet.add(n);n.classList.add("active");selected=n}
+    });
+    if(selected){positionActions();actions.classList.add("show")}
+  }
+};
+document.onmouseup=()=>{mode=null;start=null;selectionBox.style.display="none"};
+canvas.onwheel=e=>{
+  e.preventDefault();
+  const b=world(e);
+  zoom=Math.max(.3,Math.min(2.4,zoom*(e.deltaY<0?1.08:.92)));
+  const r=canvas.getBoundingClientRect();
+  panX=e.clientX-r.left-b.x*zoom;panY=e.clientY-r.top-b.y*zoom;apply();
+};
+
+newInputBtn.onclick=()=>openWin("inputWin",80,70);
+chatBtn.onclick=()=>openWin("chatWin",70,70);
+fitBtn.onclick=()=>{panX=0;panY=0;zoom=1;apply()};
+settingsBtn.onclick=()=>openWin("settingsWin",window.innerWidth-390,70);
+saveSettings.onclick=()=>{
+  localStorage.setItem("ml_anthropic_key", anthropicKey.value.trim());
+  localStorage.setItem("ml_openai_key", openaiKey.value.trim());
+  alert("Impostazioni salvate.");
+};
+anthropicKey.value = localStorage.getItem("ml_anthropic_key") || "";
+openaiKey.value = localStorage.getItem("ml_openai_key") || "";
+
+createInput.onclick=()=>{
+  const type=inputType.value,title=inputTitle.value.trim()||"Nuovo input",content=inputContent.value.trim(),intent=inputIntent.value.trim();
+  if(!content)return alert("Inserisci contenuto.");
+  if(!intent)return alert("Inserisci intenzione.");
+  addNode({type,title,content,intent,x:120+Math.random()*120,y:120+Math.random()*120});
+  inputTitle.value=inputContent.value=inputIntent.value="";closeWin("inputWin");
+};
+
+addLinkedInput.onclick=()=>{
+  if(!selected)return;
+  const p=selected;
+  addNode({type:"input collegato",title:"Nuovo input collegato",content:"Apri editor per configurare.",intent:p.dataset.intent||"",parent:p.id,x:parseFloat(p.style.left)+230,y:parseFloat(p.style.top)+80});
+};
+addAnalysis.onclick=async ()=>{
+  if(!selected)return;
+
+  const anthropicKey = localStorage.getItem("ml_anthropic_key") || "";
+  if(!anthropicKey){
+    openWin("settingsWin",window.innerWidth-390,70);
+    alert("Inserisci prima la chiave Anthropic nelle impostazioni.");
+    return;
+  }
+
+  const inputNodes = [...selectedSet].length ? [...selectedSet] : [selected];
+  const usableInputs = inputNodes.filter(n => !n.classList.contains("analysis") && !n.classList.contains("synthesis"));
+
+  if(!usableInputs.length){
+    alert("Seleziona almeno un nodo input.");
+    return;
+  }
+
+  const base = usableInputs[0];
+
+  const combinedContent = usableInputs.map((n,i)=>`
+[INPUT ${i+1}]
+Tipo: ${n.dataset.type}
+Titolo: ${n.querySelector(".ntitle").textContent}
+Intenzione: ${n.dataset.intent || "Non indicata"}
+
+Contenuto:
+${n.dataset.content || ""}
+`).join("\\n\\n---\\n\\n");
+
+  const combinedIntent = usableInputs.map(n => n.dataset.intent || "").filter(Boolean).join("\\n");
+
+  const n=addNode({
+    type:"analisi",
+    title:"Analisi in corso",
+    content:"Caricamento analisi...",
+    kind:"analysis loading",
+    parent:base.id,
+    x:parseFloat(base.style.left)+250,
+    y:parseFloat(base.style.top)
+  });
+
+  showContent(n);
+  openWin("contentWin",window.innerWidth-390,70);
+
+  contentBody.innerHTML += `
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="meta" id="pct">0%</div>
+  `;
+
+  let pr=0;
+  const t=setInterval(()=>{
+    pr=Math.min(90,pr+7);
+    if(window.bar) bar.style.width=pr+"%";
+    if(window.pct) pct.textContent=pr+"%";
+  },300);
+
+  try{
+    const res = await fetch("/api/analyze",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        anthropic_key: anthropicKey,
+        input_type: usableInputs.length > 1 ? "esperienza" : (base.dataset.type || "testo"),
+        analysis_type: "relazionale",
+        content: combinedContent,
+        user_context: combinedIntent,
+        project_context: "Media Lens v4: analisi della relazione tra utente e contenuto."
+      })
+    });
+
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || "Errore analisi");
+
+    clearInterval(t);
+    if(window.bar) bar.style.width="100%";
+    if(window.pct) pct.textContent="100%";
+
+    n.classList.remove("loading");
+    n.classList.add("done");
+    n.querySelector(".ntitle").textContent="Analisi completata";
+    n.dataset.content=data.result;
+    showContent(n);
+    drawEdges();
+
+  }catch(err){
+    clearInterval(t);
+    n.classList.remove("loading");
+    n.classList.add("alert");
+    n.querySelector(".ntitle").textContent="Errore analisi";
+    n.dataset.content="Errore: "+err.message;
+    showContent(n);
+  }
+};
+
+addSynthesis.onclick=async ()=>{
+  const analyses=[...selectedSet].filter(n=>n.classList.contains("analysis"));
+  if(!analyses.length){
+    alert("Seleziona uno o più nodi analisi.");
+    return;
+  }
+
+  const anthropicKey = localStorage.getItem("ml_anthropic_key") || "";
+  if(!anthropicKey){
+    openWin("settingsWin",window.innerWidth-390,70);
+    alert("Inserisci prima la chiave Anthropic nelle impostazioni.");
+    return;
+  }
+
+  const base=analyses[0];
+
+  const synth=addNode({
+    type:"sintesi",
+    title:"Sintesi in corso",
+    content:"Sintesi in costruzione...",
+    kind:"synthesis analysis loading",
+    parent:base.id,
+    x:parseFloat(base.style.left)+260,
+    y:parseFloat(base.style.top)+40
+  });
+
+  synth.dataset.parents = analyses.map(n=>n.id).join(",");
+
+  showContent(synth);
+  openWin("contentWin",window.innerWidth-390,70);
+  contentBody.innerHTML += `
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="meta" id="pct">0%</div>
+  `;
+
+  let pr=0;
+  const t=setInterval(()=>{
+    pr=Math.min(90,pr+8);
+    if(window.bar) bar.style.width=pr+"%";
+    if(window.pct) pct.textContent=pr+"%";
+  },300);
+
+  try{
+    const res = await fetch("/api/synthesize",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        anthropic_key: anthropicKey,
+        analyses: analyses.map(n=>({
+          type:n.dataset.type,
+          title:n.querySelector(".ntitle")?.textContent || "",
+          result:n.dataset.content || ""
+        })),
+        project_context:"Media Lens v4: costruisci una sintesi tra più analisi, evidenziando ricorrenze, tensioni, zone cieche e trasformazione possibile.",
+        user_context:"Sintesi generata da nodi selezionati nel canvas."
+      })
+    });
+
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || "Errore sintesi");
+
+    clearInterval(t);
+    if(window.bar) bar.style.width="100%";
+    if(window.pct) pct.textContent="100%";
+
+    synth.classList.remove("loading");
+    synth.classList.add("done");
+    synth.querySelector(".ntitle").textContent="Sintesi completata";
+    synth.dataset.content=data.result;
+    showContent(synth);
+    drawEdges();
+
+  }catch(err){
+    clearInterval(t);
+    synth.classList.remove("loading");
+    synth.classList.add("alert");
+    synth.querySelector(".ntitle").textContent="Errore sintesi";
+    synth.dataset.content="Errore: "+err.message;
+    showContent(synth);
+  }
+};
+
+editNode.onclick=()=>{
+  if(!selected)return;
+  editingNode=selected;editTitle.value=selected.querySelector(".ntitle").textContent;editContent.value=selected.dataset.content;editIntent.value=selected.dataset.intent;
+  openWin("editorWin",window.innerWidth-410,90);
+};
+saveNodeEdit.onclick=()=>{
+  if(!editingNode)return;
+  editingNode.querySelector(".ntitle").textContent=editTitle.value.trim()||"Nodo";
+  editingNode.dataset.content=editContent.value.trim();
+  editingNode.dataset.intent=editIntent.value.trim();
+  showContent(editingNode);drawEdges();closeWin("editorWin");
+};
+deleteNode.onclick=()=>{
+  if(!selected)return;
+  if(!confirm("Eliminare questo nodo e i suoi collegamenti?"))return;
+  const id=selected.id;nodes().forEach(n=>{if(n.dataset.parent===id)n.remove()});
+  selected.remove();clearSelection();drawEdges();
+};
+saveBtn.onclick=()=>{
+  const data={saved_at:new Date().toISOString(),nodes:nodes().map(n=>({id:n.id,type:n.dataset.type,title:n.querySelector(".ntitle").textContent,content:n.dataset.content,intent:n.dataset.intent,parent:n.dataset.parent,x:n.style.left,y:n.style.top,className:n.className}))};
+  localStorage.setItem("medialens_project",JSON.stringify(data));alert("Progetto salvato localmente.");
+};
+outputBtn.onclick=()=>{
+  openWin("outputWin",window.innerWidth-430,80);
+
+  const analyses=nodes().filter(n=>n.classList.contains("analysis") && !n.classList.contains("synthesis"));
+  const syntheses=nodes().filter(n=>n.classList.contains("synthesis"));
+
+  outputBody.innerHTML = `
+    <div class="meta">Output Media Lens</div>
+    <h3 style="font-size:15px;margin:8px 0 14px">Sintesi e analisi del progetto</h3>
+
+    <div class="meta">Sintesi</div>
+    ${syntheses.length ? syntheses.map(n=>`
+      <div style="margin:10px 0 18px;padding-bottom:12px;border-bottom:1px solid var(--brd);">
+        <h4 style="font-size:13px;margin-bottom:6px">${n.querySelector(".ntitle")?.textContent || "Sintesi"}</h4>
+        <div class="content">${n.dataset.content || ""}</div>
+      </div>
+    `).join("") : `<div class="content">Nessuna sintesi generata.</div>`}
+
+    <br>
+    <div class="meta">Analisi</div>
+    ${analyses.length ? analyses.map(n=>`
+      <div style="margin:10px 0 18px;padding-bottom:12px;border-bottom:1px solid var(--brd);">
+        <h4 style="font-size:13px;margin-bottom:6px">${n.querySelector(".ntitle")?.textContent || "Analisi"}</h4>
+        <div class="content">${n.dataset.content || ""}</div>
+      </div>
+    `).join("") : `<div class="content">Nessuna analisi generata.</div>`}
+  `;
+};
+
+apply();
+</script>
+
+
+
+
+
+
+
+<script id="mlHomeScript">
+(function(){
+function enterWorkspace(){document.body.style.overflow='hidden';document.body.style.height='100vh';document.body.classList.remove('home-mode'); window.scrollTo(0,0)}
+function goHome(){document.body.classList.add('home-mode'); window.scrollTo(0,0)}
+window.mlEnterWorkspace=enterWorkspace; window.mlGoHome=goHome;
+document.body.classList.add('home-mode');
+const create=document.getElementById('mlCreateProject'); if(create) create.onclick=enterWorkspace;
+setTimeout(()=>{const logo=document.querySelector('#app .logo, #app .brand, .toolbar .logo'); if(logo){logo.style.cursor='pointer'; logo.title='Torna alla home'; logo.addEventListener('click',goHome)}},0);
+function setupAmbient(id){const c=document.getElementById(id);if(!c)return;const ctx=c.getContext('2d');let W=0,H=0,DPR=1,t=0;function resize(){DPR=Math.min(2,window.devicePixelRatio||1);const r=c.getBoundingClientRect();W=r.width;H=r.height;c.width=W*DPR;c.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}window.addEventListener('resize',resize);resize();function css(v){return getComputedStyle(document.body).getPropertyValue(v)||getComputedStyle(document.documentElement).getPropertyValue(v)}function round(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}function node(x,y,w,h,a,label){ctx.save();ctx.globalAlpha=a;ctx.fillStyle=css('--panel2')||'#F4F1EA';ctx.strokeStyle=css('--brd2')||'#9F9A91';ctx.lineWidth=1;round(x,y,w,h,10);ctx.fill();ctx.stroke();ctx.fillStyle=css('--mut')||'#625D54';ctx.font='10px ui-monospace,monospace';ctx.fillText(label,x+12,y+22);ctx.restore()}function edge(ax,ay,bx,by,a){ctx.save();ctx.globalAlpha=a;ctx.strokeStyle=css('--acc')||'#5C52C4';ctx.lineWidth=1;const dx=(bx-ax)*.5;ctx.beginPath();ctx.moveTo(ax,ay);ctx.bezierCurveTo(ax+dx,ay,bx-dx,by,bx,by);ctx.stroke();ctx.restore()}function frame(){t+=0.01;ctx.clearRect(0,0,W,H);ctx.fillStyle=css('--bg')||'#D8D5CE';ctx.fillRect(0,0,W,H);ctx.save();ctx.globalAlpha=.30;ctx.fillStyle=css('--brd')||'#B0ACA4';for(let x=(t*24)%24;x<W;x+=24){for(let y=0;y<H;y+=24){ctx.beginPath();ctx.arc(x,y,1,0,Math.PI*2);ctx.fill()}}ctx.restore();const cx=W/2,cy=H/2,arr=[];for(let i=0;i<7;i++){const a=i/7*Math.PI*2+t*.42,r=100+Math.sin(t*2+i)*18;arr.push({x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r})}for(let i=0;i<arr.length;i++)edge(arr[i].x,arr[i].y,arr[(i+2)%arr.length].x,arr[(i+2)%arr.length].y,.18);arr.forEach((n,i)=>node(n.x-45,n.y-18,90,36,.52+Math.sin(t*3+i)*.10,['input','analisi','sintesi','output'][i%4]));requestAnimationFrame(frame)}frame()}
+function setupCreate(id){const c=document.getElementById(id);if(!c)return;const ctx=c.getContext('2d');let W=0,H=0,DPR=1,t=0;function resize(){DPR=Math.min(2,window.devicePixelRatio||1);const r=c.getBoundingClientRect();W=r.width;H=r.height;c.width=W*DPR;c.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}window.addEventListener('resize',resize);resize();function css(v){return getComputedStyle(document.body).getPropertyValue(v)||getComputedStyle(document.documentElement).getPropertyValue(v)}function poly(cx,cy,s,r,rot){ctx.beginPath();for(let i=0;i<s;i++){const a=rot-Math.PI/2+i*Math.PI*2/s,x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.fillStyle=css('--canvas-bg')||'#fff';ctx.strokeStyle=css('--canvas-line')||'#111';ctx.lineWidth=2;ctx.fill();ctx.stroke()}function frame(){t+=0.012;ctx.clearRect(0,0,W,H);ctx.fillStyle=css('--canvas-bg')||'#fff';ctx.fillRect(0,0,W,H);ctx.save();ctx.strokeStyle=css('--canvas-line')||'#111';ctx.globalAlpha=.18;ctx.lineWidth=1;const R=Math.min(W,H)*.055,dx=1.5*R,dy=Math.sqrt(3)*R,cx=W/2,cy=H/2;for(let col=-20;col<20;col++){for(let row=-20;row<20;row++){const x=cx+col*dx,y=cy+(row+(col&1)*.5)*dy;ctx.beginPath();for(let i=0;i<6;i++){const a=Math.PI/6-Math.PI/2+i*Math.PI*2/6,px=x+Math.cos(a)*R,py=y+Math.sin(a)*R;i?ctx.lineTo(px,py):ctx.moveTo(px,py)}ctx.closePath();ctx.stroke()}}ctx.restore();poly(W/2+Math.cos(t)*W*.16,H/2+Math.sin(t*1.2)*H*.18,3+Math.floor((t*0.35)%4),Math.min(W,H)*.10,t*2);requestAnimationFrame(frame)}frame()}
+setupAmbient('mlAmbientCanvas'); setupCreate('mlCreateCanvas');
+})();
+</script>
+<!-- ML_HOME_END -->
+
+
+
+
+
+
+
+
+
+
+
+
+\n
+
+\n
+
+\n
+
+\n
+
+\n
+
+\n
+
+\n
+
+\n
+
+
+
+
+
+<style>
+/* PATCH UI PULITA — toolbar e pannelli */
+.toolbar{
+  height:42px!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  padding:0 10px!important;
+  background:var(--ui)!important;
+  border-bottom:1px solid var(--brd)!important;
+}
+
+.logo{
+  cursor:pointer!important;
+  flex:0 0 auto!important;
+}
+
+.spacer{
+  flex:1!important;
+}
+
+#settingsBtn{
+  width:36px!important;
+  height:36px!important;
+  font-size:20px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+
+#floatingToolbar{
+  position:static!important;
+  transform:none!important;
+  margin:0 0 0 8px!important;
+  height:34px!important;
+  padding:3px 6px!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:6px!important;
+  border:1px solid var(--brd)!important;
+  border-radius:12px!important;
+  background:rgba(200,196,188,.92)!important;
+  box-shadow:none!important;
+  z-index:300!important;
+}
+
+.floatTool{
+  width:30px!important;
+  height:28px!important;
+  min-width:30px!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  color:var(--mut)!important;
+  font-size:16px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  cursor:pointer!important;
+}
+
+.floatTool:hover{
+  background:var(--accbg)!important;
+  color:var(--acc)!important;
+}
+
+.win.side-left.open,
+.win.side-right.open{
+  top:42px!important;
+  bottom:0!important;
+  height:calc(100vh - 42px)!important;
+  width:390px!important;
+  min-width:320px!important;
+  max-width:72vw!important;
+  border-radius:0!important;
+  resize:none!important;
+  transform:none!important;
+}
+
+.win.side-left.open{
+  left:0!important;
+  right:auto!important;
+  border-left:0!important;
+  border-top:0!important;
+  border-bottom:0!important;
+}
+
+.win.side-right.open{
+  right:0!important;
+  left:auto!important;
+  border-right:0!important;
+  border-top:0!important;
+  border-bottom:0!important;
+}
+
+.win.center-modal.open{
+  left:50%!important;
+  top:50%!important;
+  width:430px!important;
+  height:auto!important;
+  min-height:260px!important;
+  max-height:80vh!important;
+  transform:translate(-50%,-50%)!important;
+  border-radius:12px!important;
+}
+
+.side-resizer{
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:16px;
+  z-index:999;
+  background:transparent;
+}
+
+.win.side-left .side-resizer{
+  right:-8px;
+  cursor:ew-resize;
+}
+
+.win.side-right .side-resizer{
+  left:-8px;
+  cursor:ew-resize;
+}
+
+.side-resizer::after{
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  left:7px;
+  width:2px;
+  background:rgba(92,82,196,.28);
+  opacity:.55;
+}
+
+.side-resizer:hover::after{
+  opacity:1;
+  width:3px;
+}
+</style>
+
+<script>
+window.addEventListener("load", () => {
+  const topbar=document.querySelector(".toolbar");
+  const ft=document.getElementById("floatingToolbar");
+
+  if(topbar && ft && ft.parentNode!==topbar){
+    const spacer=topbar.querySelector(".spacer");
+    topbar.insertBefore(ft, spacer);
+  }
+
+  function layoutWindows(){
+    ["inputWin","editorWin","chatWin"].forEach(id=>{
+      const w=document.getElementById(id);
+      if(w){w.classList.add("side-left");w.classList.remove("side-right","center-modal");}
+    });
+
+    ["contentWin","outputWin"].forEach(id=>{
+      const w=document.getElementById(id);
+      if(w){w.classList.add("side-right");w.classList.remove("side-left","center-modal");}
+    });
+
+    const s=document.getElementById("settingsWin");
+    if(s){s.classList.add("center-modal");s.classList.remove("side-left","side-right");}
+  }
+
+  function addResizers(){
+    document.querySelectorAll(".win.side-left,.win.side-right").forEach(w=>{
+      if(w.querySelector(".side-resizer")) return;
+      const r=document.createElement("div");
+      r.className="side-resizer";
+      w.appendChild(r);
+
+      let dragging=false,startX=0,startW=0;
+
+      r.addEventListener("mousedown",e=>{
+        dragging=true;
+        startX=e.clientX;
+        startW=w.offsetWidth;
+        e.preventDefault();
+        e.stopPropagation();
+      });
+
+      document.addEventListener("mousemove",e=>{
+        if(!dragging) return;
+        let nw=startW;
+        if(w.classList.contains("side-left")) nw=startW+(e.clientX-startX);
+        else nw=startW-(e.clientX-startX);
+        nw=Math.max(320,Math.min(window.innerWidth*.72,nw));
+        w.style.width=nw+"px";
+      });
+
+      document.addEventListener("mouseup",()=>dragging=false);
+    });
+  }
+
+  layoutWindows();
+  addResizers();
+
+  const oldOpen=window.openWin;
+  window.openWin=function(id,x=null,y=null){
+    layoutWindows();
+    addResizers();
+    const w=document.getElementById(id);
+    if(!w) return;
+    w.classList.add("open");
+    if(w.classList.contains("side-left") || w.classList.contains("side-right") || w.classList.contains("center-modal")) return;
+    if(typeof oldOpen==="function") oldOpen(id,x,y);
   };
 
-  recognition.onerror = (e) => { if (e.error !== 'no-speech') showError('Errore microfono: ' + e.error); };
-  recognition.onend = () => { if (isListening) recognition.start(); };
+  document.getElementById("floatInputBtn")?.addEventListener("click",()=>openWin("inputWin"));
+  document.getElementById("floatChatBtn")?.addEventListener("click",()=>openWin("chatWin"));
+  document.getElementById("floatFitBtn")?.addEventListener("click",()=>{
+    if(typeof panX!=="undefined"){panX=0;panY=0;zoom=1;apply();}
+  });
+  document.getElementById("floatOutputBtn")?.addEventListener("click",()=>openWin("outputWin"));
 
-  recognition.start();
-  isListening = true;
-  document.getElementById('liveIndicator').classList.add('on');
-  document.getElementById('liveStatus').textContent = 'Ascolto in corso...';
-  document.getElementById('liveBtn').textContent = '■ Stop';
-  document.getElementById('liveBtn').classList.add('stop');
-
-  liveTimer = setInterval(async () => {
-    const chunk = liveBuffer.trim();
-    if (!chunk || chunk.split(' ').length < 8) return;
-    liveBuffer = '';
-    chunkNum++;
-    await analyzeLiveChunk(chunk, chunkNum, keys.anthropic);
-  }, 20000);
-}
-
-function stopLive() {
-  if (recognition) { recognition.stop(); recognition = null; }
-  if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
-  isListening = false;
-  document.getElementById('liveIndicator').classList.remove('on');
-  document.getElementById('liveStatus').textContent = 'Ascolto fermato';
-  document.getElementById('liveBtn').textContent = '▶ Start ascolto';
-  document.getElementById('liveBtn').classList.remove('stop');
-}
-
-function clearLive() {
-  stopLive();
-  liveBuffer = '';
-  chunkNum = 0;
-  document.getElementById('liveTranscript').textContent = 'Il testo trascritto apparirà qui mentre parli...';
-  document.getElementById('liveChunks').innerHTML = '';
-  document.getElementById('liveStatus').textContent = 'Premi Start per iniziare l\'ascolto';
-}
-
-async function analyzeLiveChunk(text, num, anthropicKey) {
-  try {
-    const resp = await fetch('/api/analyze-live-chunk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ anthropic_key: anthropicKey, text, chunk_num: num })
-    });
-    const data = await resp.json();
-    if (data.error || !data.flags) return;
-
-    const container = document.getElementById('liveChunks');
-    const div = document.createElement('div');
-    div.className = `live-chunk ${data.risk_level||'low'}`;
-
-    let flagsHtml = (data.flags||[]).map(f =>
-      `<span class="chunk-flag flag-${f.type}" title="${f.note}">${f.text.substring(0,50)}${f.text.length>50?'...':''}</span>`
-    ).join('');
-
-    div.innerHTML = `
-      <div class="chunk-summary">${data.summary||''} <span style="color:var(--hint);font-size:11px;margin-left:6px">chunk #${num} · rischio ${data.risk_score||0}%</span></div>
-      ${flagsHtml ? `<div class="chunk-flags">${flagsHtml}</div>` : ''}
-    `;
-    container.insertBefore(div, container.firstChild);
-  } catch(e) {}
-}
+  document.getElementById("homeLogo")?.addEventListener("click",()=>{
+    if(typeof showHome==="function") showHome();
+  });
+});
 </script>
+
+
+<style>
+.toolbar{
+  position:relative!important;
+}
+
+#floatingToolbar{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  margin:0!important;
+}
+
+.logo{
+  position:relative!important;
+  z-index:2!important;
+}
+
+#settingsBtn{
+  position:relative!important;
+  z-index:2!important;
+  margin-left:auto!important;
+}
+</style>
+\n
 </body>
 </html>
